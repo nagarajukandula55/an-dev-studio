@@ -1,5 +1,6 @@
 import { BaseAgent } from "../core/BaseAgent";
 import { AgentRole } from "../types/AgentTypes";
+import { ArchitectAgent } from "../core/ArchitectAgent";
 
 /**
  * Central registry for all agents
@@ -20,4 +21,9 @@ export class AgentRegistry {
   static getAll(): BaseAgent[] {
     return Array.from(this.agents.values());
   }
+}
+
+export function initializeDefaultAgents() {
+  const architect = new ArchitectAgent();
+  AgentRegistry.register(architect);
 }
