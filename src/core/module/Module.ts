@@ -1,20 +1,11 @@
 /**
  * ============================================================================
  * AN Dev Studio
- * Module Contract
- * ----------------------------------------------------------------------------
- * Every feature inside AN Dev Studio is represented as a Module.
- *
- * Examples:
- * - Dashboard
- * - Projects
- * - Git
- * - AI
- * - Users
- * - Settings
- *
- * Modules are discovered and managed by the Module Registry.
+ * Module Contract (Core Interface)
  * ============================================================================
+ *
+ * Every feature in AN Dev Studio is a Module.
+ * This interface defines the contract all modules must follow.
  */
 
 export type ModuleCategory =
@@ -26,87 +17,61 @@ export type ModuleCategory =
   | "system"
   | "plugin";
 
+/**
+ * Route exposed by a module.
+ */
 export interface ModuleRoute {
   path: string;
   title: string;
 }
 
+/**
+ * Command exposed by a module.
+ */
 export interface ModuleCommand {
   id: string;
   title: string;
   description?: string;
 }
 
+/**
+ * Permission required by a module.
+ */
 export interface ModulePermission {
   id: string;
   description?: string;
 }
 
+/**
+ * Optional metadata for external integrations.
+ */
 export interface StudioModuleMetadata {
   author?: string;
   website?: string;
   repository?: string;
 }
 
+/**
+ * ============================================================================
+ * StudioModule
+ * ============================================================================
+ *
+ * Base contract for all modules.
+ */
 export interface StudioModule {
-  /**
-   * Globally unique module identifier.
-   * Example: dashboard
-   */
   readonly id: string;
-
-  /**
-   * Display name.
-   */
   readonly name: string;
-
-  /**
-   * Module description.
-   */
   readonly description: string;
-
-  /**
-   * Semantic version.
-   */
   readonly version: string;
-
-  /**
-   * Module category.
-   */
   readonly category: ModuleCategory;
-
-  /**
-   * Icon identifier.
-   */
   readonly icon: string;
 
-  /**
-   * Routes contributed by this module.
-   */
   readonly routes: readonly ModuleRoute[];
-
-  /**
-   * Commands exposed by this module.
-   */
   readonly commands: readonly ModuleCommand[];
-
-  /**
-   * Permissions required by this module.
-   */
   readonly permissions: readonly ModulePermission[];
 
-  /**
-   * Optional metadata.
-   */
   readonly metadata?: StudioModuleMetadata;
 
-  /**
-   * Called when the module is loaded.
-   */
   initialize(): Promise<void>;
-
-  /**
-   * Called before unloading.
-   */
   dispose?(): Promise<void>;
 }

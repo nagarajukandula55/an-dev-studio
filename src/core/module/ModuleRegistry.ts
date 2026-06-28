@@ -1,80 +1,81 @@
 import { StudioModule } from "./Module";
+import { ModuleDescriptor } from "./ModuleDescriptor";
+import { ModuleState } from "./ModuleState";
 
 /**
  * ============================================================================
  * AN Dev Studio
  * Module Registry
- * ----------------------------------------------------------------------------
- * Central registry responsible for tracking all modules available
- * within the platform.
+ * ============================================================================
+ *
+ * Central registry responsible for storing all modules and their runtime state.
  *
  * Responsibilities:
  * - Register modules
- * - Prevent duplicate registrations
- * - Discover modules
- * - Unregister modules
- *
- * NOTE:
- * Module lifecycle (initialize/dispose) is handled by ModuleManager.
- * ============================================================================
+ * - Prevent duplicates
+ * - Provide module lookup
+ * - Provide module list
  */
+
 export class ModuleRegistry {
-  private static readonly modules = new Map<string, StudioModule>();
+  private static readonly modules = new Map<string, ModuleDescriptor>();
 
   /**
-   * Register a module.
-   *
-   * @throws Error if a module with the same ID already exists.
+   * Register a module into the system.
    */
   public static register(module: StudioModule): void {
     if (this.modules.has(module.id)) {
       throw new Error(`Module '${module.id}' is already registered.`);
     }
 
-    this.modules.set(module.id, module);
+    const descriptor: ModuleDescriptor = {
+      module,
+      state: ModuleState.REGISTERED,
+      registeredAt: new Date(),
+    };
+
+    this.modules.set(module.id, descriptor);
   }
 
   /**
-   * Remove a module from the registry.
+   * Get module descriptor by ID.
    */
-  public static unregister(id: string): boolean {
-    return this.modules.delete(id);
+  public static get(id: string): ModuleDescriptor | undefined {
+    return this.modules.get(id);
   }
 
   /**
-   * Returns true if the module exists.
+   * Check if module exists.
    */
   public static has(id: string): boolean {
     return this.modules.has(id);
   }
 
   /**
-   * Get a module by ID.
+   * Get all modules.
    */
-  public static get(id: string): StudioModule | undefined {
-    return this.modules.get(id);
-  }
-
-  /**
-   * Returns every registered module.
-   */
-  public static getAll(): readonly StudioModule[] {
+  public static getAll(): readonly ModuleDescriptor[] {
     return Object.freeze(Array.from(this.modules.values()));
   }
 
   /**
-   * Number of registered modules.
+   * Remove module from registry.
    */
-  public static count(): number {
-    return this.modules.size;
+  public static unregister(id: string): boolean {
+    return this.modules.delete(id);
   }
 
   /**
-   * Clears the registry.
-   *
-   * Intended for testing.
+   * Clear registry (testing only).
    */
   public static clear(): void {
     this.modules.clear();
+  }
+
+  /**
+   * Count modules.
+   */
+  public static count(): number {
+    return this.modules.size;
   }
 }
