@@ -1,24 +1,58 @@
-import { AgentContext, AgentResult, AgentRole } from "../types/AgentTypes";
 import { AgentRegistry } from "../registry/AgentRegistry";
-import { initializeDefaultAgents } from "../registry/AgentRegistry";
+import {
+  AgentContext,
+  AgentResult,
+  AgentRole,
+} from "../types/AgentTypes";
+import { AgentEventBridge } from "../events/AgentEventBridge";
 
 /**
- * Agent Runtime
- * Responsible for executing agents and managing workflow
+ * ============================================================================
+ * AN Dev Studio
+ * AI Agent Runtime (Integrated)
+ * ============================================================================
  */
 
 export class AgentRuntime {
-  constructor() {
-    initializeDefaultAgents();
-  }
-
-  async run(role: AgentRole, context: AgentContext): Promise<AgentResult> {
+  public async run(
+    role: AgentRole,
+    context: AgentContext
+  ): Promise<AgentResult> {
     const agent = AgentRegistry.get(role);
 
     if (!agent) {
-      throw new Error(`Agent not found: ${role}`);
+      const error = new Error(`Agent not found: ${role}`);
+      AgentEventBridge.emitFailure(role, error);
+
+      return {
+        success: false,
+        output: null,
+        logs: [error.message],
+      };
     }
 
-    return await agent.execute(context);
+    try {
+      // Emit start event
+      AgentEventBridge.emitStart(role, context);
+
+      // Execute agent
+      const result = await agent.execute(context);
+
+      // Emit completion event
+      AgentEventBridge.emitComplete(role, result);
+
+      return result;
+    } catch (error) {
+      const err = error as Error;
+
+      // Emit failure event
+      AgentEventBridge.emitFailure(role, err);
+
+      return {
+        success: false,
+        output: null,
+        logs: [err.message],
+      };
+    }
   }
 }

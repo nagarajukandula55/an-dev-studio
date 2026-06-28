@@ -1,7 +1,7 @@
-import { ModuleRegistry } from "./ModuleRegistry";
 import { StudioModule } from "./Module";
-import { ModuleState } from "./ModuleState";
 import { ModuleDescriptor } from "./ModuleDescriptor";
+import { ModuleLoader } from "./ModuleLoader";
+import { ModuleRegistry } from "./ModuleRegistry";
 
 /**
  * ============================================================================
@@ -9,98 +9,197 @@ import { ModuleDescriptor } from "./ModuleDescriptor";
  * Module Manager
  * ============================================================================
  *
- * Responsible for module lifecycle execution.
+ * Central orchestration layer for module lifecycle management.
  *
  * Responsibilities:
- * - Initialize modules
- * - Dispose modules
- * - Track lifecycle state
+ *  - Register modules
+ *  - Unregister modules
+ *  - Initialize modules
+ *  - Dispose modules
+ *  - Restart modules
+ *  - Bulk lifecycle operations
+ *
+ * NOTE:
+ * ModuleManager DOES NOT execute lifecycle logic itself.
+ * That responsibility belongs to ModuleLoader.
+ * ============================================================================
  */
-
 export class ModuleManager {
+
   /**
-   * Initialize a single module.
+   * Register a module.
    */
-  public static async initialize(module: StudioModule): Promise<void> {
+  public static register(module: StudioModule): ModuleDescriptor {
+    return ModuleRegistry.register(module);
+  }
+
+  /**
+   * Register multiple modules.
+   */
+  public static registerMany(
+    modules: readonly StudioModule[]
+  ): readonly ModuleDescriptor[] {
+
+    return modules.map(module => this.register(module));
+
+  }
+
+  /**
+   * Unregister module.
+   */
+  public static unregister(id: string): boolean {
+    return ModuleRegistry.unregister(id);
+  }
+
+  /**
+   * Initialize one module.
+   */
+  public static async initialize(
+    module: StudioModule
+  ): Promise<void> {
+
     const descriptor = ModuleRegistry.get(module.id);
 
     if (!descriptor) {
-      throw new Error(`Module not registered: ${module.id}`);
+      throw new Error(`Module '${module.id}' is not registered.`);
     }
 
-    await this.runInitialization(descriptor);
+    await ModuleLoader.initialize(descriptor);
+
   }
 
   /**
-   * Initialize all modules.
+   * Initialize module by id.
+   */
+  public static async initializeById(
+    id: string
+  ): Promise<void> {
+
+    const descriptor = ModuleRegistry.get(id);
+
+    if (!descriptor) {
+      throw new Error(`Module '${id}' is not registered.`);
+    }
+
+    await ModuleLoader.initialize(descriptor);
+
+  }
+
+  /**
+   * Initialize every registered module.
    */
   public static async initializeAll(): Promise<void> {
-    const modules = ModuleRegistry.getAll();
 
-    for (const descriptor of modules) {
-      await this.runInitialization(descriptor);
+    for (const descriptor of ModuleRegistry.getAll()) {
+      await ModuleLoader.initialize(descriptor);
     }
+
   }
 
   /**
-   * Dispose a single module.
+   * Dispose one module.
    */
-  public static async dispose(module: StudioModule): Promise<void> {
+  public static async dispose(
+    module: StudioModule
+  ): Promise<void> {
+
     const descriptor = ModuleRegistry.get(module.id);
 
-    if (!descriptor) return;
+    if (!descriptor) {
+      return;
+    }
 
-    await this.runDisposal(descriptor);
+    await ModuleLoader.dispose(descriptor);
+
   }
 
   /**
-   * Dispose all modules in reverse order.
+   * Dispose module by id.
+   */
+  public static async disposeById(
+    id: string
+  ): Promise<void> {
+
+    const descriptor = ModuleRegistry.get(id);
+
+    if (!descriptor) {
+      return;
+    }
+
+    await ModuleLoader.dispose(descriptor);
+
+  }
+
+  /**
+   * Dispose all modules.
+   *
+   * Reverse order prevents dependency issues.
    */
   public static async disposeAll(): Promise<void> {
-    const modules = [...ModuleRegistry.getAll()].reverse();
 
-    for (const descriptor of modules) {
-      await this.runDisposal(descriptor);
+    const descriptors = [...ModuleRegistry.getAll()].reverse();
+
+    for (const descriptor of descriptors) {
+      await ModuleLoader.dispose(descriptor);
     }
+
   }
 
   /**
-   * Internal initialization flow.
+   * Restart module.
    */
-  private static async runInitialization(descriptor: ModuleDescriptor): Promise<void> {
-    try {
-      descriptor.state = ModuleState.INITIALIZING;
+  public static async restart(
+    id: string
+  ): Promise<void> {
 
-      const start = performance.now();
+    const descriptor = ModuleRegistry.get(id);
 
-      await descriptor.module.initialize();
-
-      descriptor.startupTime = performance.now() - start;
-      descriptor.initializedAt = new Date();
-      descriptor.state = ModuleState.RUNNING;
-    } catch (error) {
-      descriptor.state = ModuleState.FAILED;
-      descriptor.error = error as Error;
-      throw error;
+    if (!descriptor) {
+      throw new Error(`Module '${id}' is not registered.`);
     }
+
+    await ModuleLoader.reload(descriptor);
+
   }
 
   /**
-   * Internal disposal flow.
+   * Get descriptor.
    */
-  private static async runDisposal(descriptor: ModuleDescriptor): Promise<void> {
-    try {
-      descriptor.state = ModuleState.STOPPING;
+  public static get(
+    id: string
+  ): ModuleDescriptor | undefined {
 
-      if (descriptor.module.dispose) {
-        await descriptor.module.dispose();
-      }
+    return ModuleRegistry.get(id);
 
-      descriptor.state = ModuleState.STOPPED;
-    } catch (error) {
-      descriptor.state = ModuleState.FAILED;
-      descriptor.error = error as Error;
-      throw error;
-    }
   }
+
+  /**
+   * Get all modules.
+   */
+  public static getAll(): readonly ModuleDescriptor[] {
+
+    return ModuleRegistry.getAll();
+
+  }
+
+  /**
+   * Check if module exists.
+   */
+  public static has(
+    id: string
+  ): boolean {
+
+    return ModuleRegistry.has(id);
+
+  }
+
+  /**
+   * Number of registered modules.
+   */
+  public static count(): number {
+
+    return ModuleRegistry.count();
+
+  }
+
 }

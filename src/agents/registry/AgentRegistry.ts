@@ -1,29 +1,35 @@
-import { BaseAgent } from "../core/BaseAgent";
+import { Agent } from "../core/Agent";
 import { AgentRole } from "../types/AgentTypes";
-import { ArchitectAgent } from "../core/ArchitectAgent";
 
 /**
- * Central registry for all agents
- * Acts as the system brain directory
+ * ============================================================================
+ * AN Dev Studio
+ * Agent Registry
+ * ============================================================================
+ *
+ * Stores all registered AI agents.
  */
 
 export class AgentRegistry {
-  private static agents: Map<AgentRole, BaseAgent> = new Map();
+  private static agents: Map<AgentRole, Agent> = new Map();
 
-  static register(agent: BaseAgent) {
-    this.agents.set(agent.getRole(), agent);
+  public static register(agent: Agent): void {
+    if (this.agents.has(agent.role)) {
+      throw new Error(`Agent already registered: ${agent.role}`);
+    }
+
+    this.agents.set(agent.role, agent);
   }
 
-  static get(role: AgentRole): BaseAgent | undefined {
+  public static get(role: AgentRole): Agent | undefined {
     return this.agents.get(role);
   }
 
-  static getAll(): BaseAgent[] {
+  public static getAll(): Agent[] {
     return Array.from(this.agents.values());
   }
-}
 
-export function initializeDefaultAgents() {
-  const architect = new ArchitectAgent();
-  AgentRegistry.register(architect);
+  public static clear(): void {
+    this.agents.clear();
+  }
 }

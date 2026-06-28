@@ -15,6 +15,7 @@ export type ModuleCategory =
   | "ai"
   | "integration"
   | "system"
+  | "AUTO_GENERATED"
   | "plugin";
 
 /**
