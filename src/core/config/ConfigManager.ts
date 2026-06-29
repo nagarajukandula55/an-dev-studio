@@ -1,51 +1,134 @@
-import { ConfigStore } from "./ConfigStore";
-import { ConfigValue } from "./ConfigTypes";
-
 /**
  * ============================================================================
  * AN Dev Studio
- * Configuration Manager
+ * Config Manager
  * ============================================================================
- *
- * Higher-level API for configuration handling.
  */
 
+import {
+    ConfigEntry,
+    ConfigSnapshot,
+    ConfigValue
+} from "./ConfigTypes";
+
 export class ConfigManager {
-  /**
-   * Set value
-   */
-  public static set(key: string, value: ConfigValue): void {
-    ConfigStore.set(key, value);
-  }
 
-  /**
-   * Get value with fallback support
-   */
-  public static get<T = ConfigValue>(
-    key: string,
-    fallback?: T
-  ): T {
-    const value = ConfigStore.get<T>(key);
+    private static readonly values =
+        new Map<string, ConfigEntry>();
 
-    if (value === undefined) {
-      return fallback as T;
+    /**
+     * Set value.
+     */
+    public static set<T extends ConfigValue>(
+        key: string,
+        value: T,
+        description?: string,
+        readonly = false
+    ): void {
+
+        const existing = this.values.get(key);
+
+        if (existing?.readonly) {
+            throw new Error(
+                `'${key}' is readonly.`
+            );
+        }
+
+        this.values.set(key, {
+
+            key,
+
+            value,
+
+            description,
+
+            readonly,
+
+        });
+
     }
 
-    return value;
-  }
+    /**
+     * Get value.
+     */
+    public static get<T = ConfigValue>(
+        key: string
+    ): T {
 
-  /**
-   * Merge object config
-   */
-  public static merge(key: string, value: object): void {
-    const existing = ConfigStore.get<object>(key) || {};
-    ConfigStore.set(key, { ...existing, ...value });
-  }
+        const config = this.values.get(key);
 
-  /**
-   * Reset config system
-   */
-  public static reset(): void {
-    ConfigStore.clear();
-  }
+        if (!config) {
+            throw new Error(
+                `Configuration '${key}' not found.`
+            );
+        }
+
+        return config.value as T;
+
+    }
+
+    /**
+     * Exists?
+     */
+    public static has(
+        key: string
+    ): boolean {
+
+        return this.values.has(key);
+
+    }
+
+    /**
+     * Remove.
+     */
+    public static delete(
+        key: string
+    ): boolean {
+
+        const config = this.values.get(key);
+
+        if (config?.readonly) {
+
+            throw new Error(
+                `'${key}' is readonly.`
+            );
+
+        }
+
+        return this.values.delete(key);
+
+    }
+
+    /**
+     * Snapshot.
+     */
+    public static snapshot(): ConfigSnapshot {
+
+        const values = [...this.values.values()];
+
+        return {
+
+            total: values.length,
+
+            readonly: values.filter(
+                c => c.readonly
+            ).length,
+
+            keys: values.map(
+                c => c.key
+            ),
+
+        };
+
+    }
+
+    /**
+     * Remove everything.
+     */
+    public static clear(): void {
+
+        this.values.clear();
+
+    }
+
 }

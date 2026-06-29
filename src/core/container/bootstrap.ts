@@ -123,4 +123,16 @@ export class ServiceBootstrap {
 
   }
 
+  /**
+   * Reset bootstrap state.
+   *
+   * Allows the framework to bootstrap again
+   * after a full shutdown.
+   */
+  public static reset(): void {
+
+      this.initialized = false;
+
+  }
+
 }

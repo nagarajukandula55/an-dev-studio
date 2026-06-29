@@ -13,10 +13,14 @@
     "build": "npm run build --workspace=@an-groups/studio",
     "lint": "npm run lint --workspace=@an-groups/studio",
     "type-check": "npm run type-check --workspace=@an-groups/studio",
-    "clean": "npm run clean --workspace=@an-groups/studio"
+    "clean": "npm run clean --workspace=@an-groups/studio",
+    "studio": "tsx src/studio.ts"
   },
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=11.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.1"
   }
 }

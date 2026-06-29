@@ -1,5 +1,4 @@
-import { EventMap } from "./EventMap";
-import { EventContext, EventKey } from "./EventPipeline";
+import { EventContext } from "./EventPipeline";
 
 /**
  * ============================================================================
@@ -8,15 +7,39 @@ import { EventContext, EventKey } from "./EventPipeline";
  * ============================================================================
  */
 
-export interface AIInspectionResult<K extends EventKey> {
-  allow: boolean;
-  modifiedEvent?: EventContext<K>;
-  reason?: string;
-  confidence?: number;
+export interface AIInspectionResult {
+
+    /**
+     * Allow event execution.
+     */
+    allow: boolean;
+
+    /**
+     * Confidence score (0-1)
+     */
+    confidence: number;
+
+    /**
+     * Optional reason if blocked.
+     */
+    reason?: string;
+
+    /**
+     * AI may modify the event/context.
+     */
+    modifiedEvent?: EventContext<any>;
+
 }
 
+/**
+ * ============================================================================
+ * Contract implemented by all AI inspectors.
+ * ============================================================================
+ */
 export interface AIEventInspector {
-  inspect<K extends EventKey>(
-    ctx: EventContext<K>
-  ): Promise<AIInspectionResult<K>>;
+
+    inspect(
+        context: EventContext<any>
+    ): Promise<AIInspectionResult>;
+
 }

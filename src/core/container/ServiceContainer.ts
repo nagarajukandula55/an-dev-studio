@@ -222,19 +222,36 @@ export class ServiceContainer {
    */
   public static async dispose(): Promise<void> {
 
-    for (const descriptor of this.services.values()) {
+      for (const descriptor of this.services.values()) {
 
-      const instance = descriptor.instance as {
-        dispose?: () => Promise<void> | void;
-      };
+          /**
+           * Skip services that were never instantiated.
+           */
+          if (!descriptor.instance) {
+              continue;
+          }
 
-      if (instance?.dispose) {
-        await instance.dispose();
+          /**
+           * Dispose only object instances.
+           * Static classes (ModuleManager, EventBus, etc.)
+           * must never be disposed.
+           */
+          if (
+              typeof descriptor.instance === "object" &&
+              descriptor.instance !== null &&
+              "dispose" in descriptor.instance &&
+              typeof (descriptor.instance as any).dispose === "function"
+          ) {
+
+              await (descriptor.instance as {
+                  dispose(): Promise<void> | void;
+              }).dispose();
+
+          }
+
       }
 
-    }
-
-    this.services.clear();
+      this.services.clear();
 
   }
 

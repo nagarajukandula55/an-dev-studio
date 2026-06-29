@@ -1,323 +1,250 @@
+import { EventContext, EventKey, TypedEvent } from "./EventPipeline";
 import { DefaultAIInspector } from "./DefaultAIInspector";
-import { EventHandler } from "./EventHandler";
-import {
-  EventContext,
-  EventKey,
-  TypedEvent,
-} from "./EventPipeline";
-import { EventMap } from "./EventMap";
+import { EventHistory } from "./EventHistory";
+import { EventStatistics } from "./EventStatistics";
 import { SelfHealingEngine } from "../healing/SelfHealingEngine";
+
+type Handler<K extends EventKey = EventKey> =
+  (context: EventContext<K>) => void | Promise<void>;
 
 /**
  * ============================================================================
  * AN Dev Studio
  * Enterprise Event Bus
  * ============================================================================
- *
- * Responsibilities
- *
- * • Subscribe
- * • Unsubscribe
- * • Subscribe Once
- * • Emit
- * • AI Inspection
- * • Self Healing
- * • Wildcard Listeners
- * • Diagnostics
- *
- * ============================================================================
  */
 
 export class EventBus {
 
-  /**
-   * Event listeners
-   */
-  private static readonly handlers =
-    new Map<EventKey, Set<EventHandler<any>>>();
+    private static readonly handlers =
+        new Map<EventKey, Set<Handler>>();
 
-  /**
-   * Global listeners (*)
-   */
-  private static readonly wildcardHandlers =
-    new Set<(ctx: EventContext<any>) => void | Promise<void>>();
-
-  /**
-   * AI Inspector
-   */
-  private static readonly inspector =
-    new DefaultAIInspector();
-
-  /**
-   * ============================================================
-   * Subscribe
-   * ============================================================
-   */
-
-  public static on<K extends EventKey>(
-    event: K,
-    handler: EventHandler<K>
-  ): void {
-
-    if (!this.handlers.has(event)) {
-      this.handlers.set(event, new Set());
-    }
-
-    this.handlers.get(event)!.add(handler);
-
-  }
-
-  /**
-   * ============================================================
-   * Subscribe Once
-   * ============================================================
-   */
-
-  public static once<K extends EventKey>(
-    event: K,
-    handler: EventHandler<K>
-  ): void {
-
-    const wrapper: EventHandler<K> = async (e) => {
-
-      this.off(event, wrapper);
-
-      await handler(e);
-
-    };
-
-    this.on(event, wrapper);
-
-  }
-
-  /**
-   * ============================================================
-   * Global Listener
-   * ============================================================
-   */
-
-  public static onAny(
-    handler: (ctx: EventContext<any>) => void | Promise<void>
-  ): void {
-
-    this.wildcardHandlers.add(handler);
-
-  }
-
-  /**
-   * ============================================================
-   * Remove Listener
-   * ============================================================
-   */
-
-  public static off<K extends EventKey>(
-    event: K,
-    handler: EventHandler<K>
-  ): void {
-
-    const set = this.handlers.get(event);
-
-    if (!set) return;
-
-    set.delete(handler);
-
-    if (set.size === 0) {
-      this.handlers.delete(event);
-    }
-
-  }
-
-  /**
-   * ============================================================
-   * Emit
-   * ============================================================
-   */
-
-  public static async emit<K extends EventKey>(
-    event: TypedEvent<K>
-  ): Promise<void> {
-
-    const ctx: EventContext<K> = {
-
-      event,
-
-      cancelled: false,
-
-      metadata: {},
-
-    };
+    private static readonly inspector =
+        new DefaultAIInspector();
 
     /**
-     * AI Inspection
+     * =========================================================================
+     * Subscribe
+     * =========================================================================
      */
 
-    await this.preProcess(ctx);
+    public static on<K extends EventKey>(
+        event: K,
+        handler: Handler<K>
+    ): void {
 
-    if (ctx.cancelled) {
+        if (!this.handlers.has(event)) {
+            this.handlers.set(event, new Set());
+        }
 
-      return;
+        this.handlers.get(event)!.add(handler as Handler);
 
     }
 
     /**
-     * Wildcard listeners
+     * =========================================================================
+     * Unsubscribe
+     * =========================================================================
      */
 
-    for (const listener of this.wildcardHandlers) {
+    public static off<K extends EventKey>(
+        event: K,
+        handler: Handler<K>
+    ): void {
 
-      try {
+        this.handlers.get(event)?.delete(handler as Handler);
 
-        await listener(ctx);
+    }
 
-      } catch (err) {
+    /**
+     * =========================================================================
+     * Emit
+     * =========================================================================
+     */
 
-        await SelfHealingEngine.handleFailure(
-          event.type,
-          err
+    public static async emit<K extends EventKey>(
+        event: TypedEvent<K>
+    ): Promise<void> {
+
+        EventHistory.push(event);
+
+        EventStatistics.emitted(event.type);
+
+        const context: EventContext<K> = {
+
+            event,
+
+            cancelled: false,
+
+            metadata: {},
+
+        };
+
+        const inspection =
+            await this.inspector.inspect(context);
+
+        if (!inspection.allow) {
+
+            return;
+
+        }
+
+        const handlers =
+            this.handlers.get(event.type);
+
+        if (!handlers || handlers.size === 0) {
+
+            return;
+
+        }
+
+        for (const handler of handlers) {
+
+            try {
+
+                await handler(context);
+
+                EventStatistics.handled(event.type);
+
+            }
+
+            catch (error) {
+
+                EventStatistics.failed(event.type);
+
+                await SelfHealingEngine.handleFailure(
+
+                    event.type,
+
+                    error
+
+                );
+
+            }
+
+        }
+
+    }
+
+    /**
+     * =========================================================================
+     * Emit Sync
+     * =========================================================================
+     */
+
+    public static emitSync<K extends EventKey>(
+        event: TypedEvent<K>
+    ): void {
+
+        EventHistory.push(event);
+
+        EventStatistics.emitted(event.type);
+
+        const handlers =
+            this.handlers.get(event.type);
+
+        if (!handlers) {
+
+            return;
+
+        }
+
+        const context: EventContext<K> = {
+
+            event,
+
+            cancelled: false,
+
+            metadata: {},
+
+        };
+
+        for (const handler of handlers) {
+
+            try {
+
+                handler(context);
+
+                EventStatistics.handled(event.type);
+
+            }
+
+            catch {
+
+                EventStatistics.failed(event.type);
+
+            }
+
+        }
+
+    }
+
+    /**
+     * =========================================================================
+     * Listener Count
+     * =========================================================================
+     */
+
+    public static listenerCount(
+
+        event: EventKey
+
+    ): number {
+
+        return this.handlers.get(event)?.size ?? 0;
+
+    }
+
+    /**
+     * =========================================================================
+     * Total Listeners
+     * =========================================================================
+     */
+
+    public static totalListeners(): number {
+
+        let total = 0;
+
+        for (const set of this.handlers.values()) {
+
+            total += set.size;
+
+        }
+
+        return total;
+
+    }
+
+    /**
+     * =========================================================================
+     * Registered Events
+     * =========================================================================
+     */
+
+    public static registeredEvents(): readonly EventKey[] {
+
+        return Object.freeze(
+
+            [...this.handlers.keys()]
+
         );
 
-      }
-
     }
 
     /**
-     * Typed listeners
+     * =========================================================================
+     * Clear
+     * =========================================================================
      */
 
-    const listeners = this.handlers.get(event.type);
+    public static clear(): void {
 
-    if (listeners) {
+        this.handlers.clear();
 
-      for (const handler of listeners) {
+        EventHistory.clear();
 
-        try {
-
-          await handler(ctx.event);
-
-        }
-
-        catch (err) {
-
-          await SelfHealingEngine.handleFailure(
-
-            event.type,
-
-            err
-
-          );
-
-        }
-
-      }
+        EventStatistics.clear();
 
     }
-
-    /**
-     * AI Post Processing
-     */
-
-    await this.postProcess(ctx);
-
-  }
-
-  /**
-   * ============================================================
-   * AI Pre Processing
-   * ============================================================
-   */
-
-  private static async preProcess<K extends EventKey>(
-    ctx: EventContext<K>
-  ): Promise<void> {
-
-    const result =
-      await this.inspector.inspect(ctx);
-
-    if (!result.allow) {
-
-      ctx.cancelled = true;
-
-      return;
-
-    }
-
-    if (result.modifiedEvent) {
-
-      ctx.event =
-        result.modifiedEvent.event as TypedEvent<K>;
-
-      ctx.metadata = {
-
-        ...ctx.metadata,
-
-        ...result.modifiedEvent.metadata,
-
-      };
-
-    }
-
-    ctx.metadata = {
-
-      ...ctx.metadata,
-
-      aiApproved: true,
-
-      confidence: result.confidence,
-
-    };
-
-  }
-
-  /**
-   * ============================================================
-   * AI Post Processing
-   * ============================================================
-   */
-
-  private static async postProcess<K extends EventKey>(
-    ctx: EventContext<K>
-  ): Promise<void> {
-
-    console.log(
-
-      `[EventBus] ${ctx.event.type}`,
-
-      ctx.metadata
-
-    );
-
-  }
-
-  /**
-   * ============================================================
-   * Diagnostics
-   * ============================================================
-   */
-
-  public static listenerCount(
-    event: EventKey
-  ): number {
-
-    return this.handlers.get(event)?.size ?? 0;
-
-  }
-
-  public static eventTypes(): readonly EventKey[] {
-
-    return Object.freeze(
-
-      [...this.handlers.keys()]
-
-    );
-
-  }
-
-  public static clear(): void {
-
-    this.handlers.clear();
-
-    this.wildcardHandlers.clear();
-
-  }
 
 }

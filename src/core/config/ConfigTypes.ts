@@ -1,32 +1,28 @@
 /**
  * ============================================================================
  * AN Dev Studio
- * Configuration System - Types
+ * Configuration Types
  * ============================================================================
  */
 
 export type ConfigValue =
-  | string
-  | number
-  | boolean
-  | null
-  | ConfigObject
-  | ConfigValue[];
+    | string
+    | number
+    | boolean
+    | null
+    | ConfigValue[]
+    | {
+        [key: string]: ConfigValue;
+    };
 
-export interface ConfigObject {
-  [key: string]: ConfigValue;
-}
+export interface ConfigEntry<T = ConfigValue> {
 
-/**
- * Configuration scope defines where config applies
- */
-export type ConfigScope = "global" | "module" | "runtime";
+    key: string;
 
-/**
- * A single configuration entry
- */
-export interface ConfigEntry {
-  key: string;
-  value: ConfigValue;
-  scope: ConfigScope;
+    value: T;
+
+    description?: string;
+
+    readonly?: boolean;
+
 }

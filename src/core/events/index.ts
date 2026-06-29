@@ -8,7 +8,14 @@
  */
 
 export * from "./Event";
-export * from "./EventHandler";
-export * from "./EventTypes";
 export * from "./EventBus";
-export * from "./EventFactory";
+export * from "./EventHandler";
+export * from "./EventHistory";
+export * from "./EventStatistics";
+export * from "./EventDiagnostics";
+export * from "./EventPipeline";
+export * from "./EventMap";
+export * from "./AIEventInspector";
+export * from "./DefaultAIInspector";
+export * from "./EventTests";
+export * from "./EventBuilder";

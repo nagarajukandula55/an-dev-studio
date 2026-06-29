@@ -8,7 +8,7 @@
  * This interface defines the contract all modules must follow.
  */
 
-export type ModuleCategory =
+export type StudioModuleCategory =
   | "core"
   | "workspace"
   | "development"
@@ -60,19 +60,34 @@ export interface StudioModuleMetadata {
  * Base contract for all modules.
  */
 export interface StudioModule {
-  readonly id: string;
-  readonly name: string;
-  readonly description: string;
-  readonly version: string;
-  readonly category: ModuleCategory;
-  readonly icon: string;
 
-  readonly routes: readonly ModuleRoute[];
-  readonly commands: readonly ModuleCommand[];
-  readonly permissions: readonly ModulePermission[];
+    readonly id: string;
 
-  readonly metadata?: StudioModuleMetadata;
+    readonly name: string;
 
-  initialize(): Promise<void>;
-  dispose?(): Promise<void>;
+    readonly description: string;
+
+    readonly version: string;
+
+    readonly category: StudioModuleCategory;
+
+    readonly icon: string;
+
+    readonly routes: readonly ModuleRoute[];
+
+    readonly commands: readonly ModuleCommand[];
+
+    readonly permissions: readonly ModulePermission[];
+
+    readonly metadata?: StudioModuleMetadata;
+
+    readonly tags?: readonly string[];
+
+    readonly enabled?: boolean;
+
+    readonly priority?: number;
+
+    initialize(): Promise<void>;
+
+    dispose?(): Promise<void>;
 }
