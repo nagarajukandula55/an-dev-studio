@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import Link from "next/link";
-import TopBar from "@/components/layout/TopBar";
+import { AppShell } from "@/components/layout/AppShell";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -172,58 +172,6 @@ const LANGUAGE_LABELS: Record<string, string> = {
   ico: "Binary",
   png: "Binary",
 };
-
-// ---------------------------------------------------------------------------
-// AppShell
-// ---------------------------------------------------------------------------
-
-interface AppShellProps {
-  title: string;
-  children: React.ReactNode;
-}
-
-function AppShell({ title, children }: AppShellProps) {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--background, #f8fafc)",
-        color: "var(--foreground, #0f172a)",
-        fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <TopBar />
-      <main
-        style={{
-          flex: 1,
-          width: "100%",
-          maxWidth: 1440,
-          margin: "0 auto",
-          padding: "24px 24px 32px",
-          boxSizing: "border-box",
-          display: "flex",
-          flexDirection: "column",
-          gap: 16,
-        }}
-      >
-        <h1
-          style={{
-            fontSize: 24,
-            fontWeight: 800,
-            letterSpacing: "-0.02em",
-            color: "var(--foreground, #0f172a)",
-            margin: 0,
-          }}
-        >
-          {title}
-        </h1>
-        {children}
-      </main>
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // InfoBanner
