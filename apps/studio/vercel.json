@@ -1,9 +1,9 @@
 {
     "framework": "nextjs",
-    "buildCommand": "npm run build --workspace=@an-groups/studio",
-    "outputDirectory": "apps/studio/.next",
+    "buildCommand": "npm run build",
+    "outputDirectory": ".next",
     "installCommand": "npm install",
-    "devCommand": "npm run dev --workspace=@an-groups/studio",
+    "devCommand": "npm run dev",
     "env": {
         "DEFAULT_PROVIDER": "groq"
     },
