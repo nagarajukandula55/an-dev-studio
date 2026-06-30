@@ -9,18 +9,26 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=@an-groups/studio",
-    "build": "npm run build --workspace=@an-groups/studio",
-    "lint": "npm run lint --workspace=@an-groups/studio",
-    "type-check": "npm run type-check --workspace=@an-groups/studio",
-    "clean": "npm run clean --workspace=@an-groups/studio",
-    "studio": "tsx src/studio.ts"
+    "dev":        "npm run dev --workspace=@an-groups/studio",
+    "build":      "npm run build --workspace=@an-groups/studio",
+    "lint":       "npm run lint --workspace=@an-groups/studio",
+    "type-check": "tsc --noEmit --project tsconfig.json",
+    "test":       "vitest run",
+    "test:watch": "vitest",
+    "test:ui":    "vitest --ui",
+    "coverage":   "vitest run --coverage",
+    "clean":      "npm run clean --workspace=@an-groups/studio",
+    "studio":     "tsx src/studio.ts"
   },
   "engines": {
     "node": ">=22.0.0",
-    "npm": ">=11.0.0"
+    "npm":  ">=11.0.0"
   },
   "devDependencies": {
-    "@types/node": "^26.0.1"
+    "@types/node":       "^22",
+    "@vitest/coverage-v8": "^2",
+    "tsx":               "^4",
+    "typescript":        "^5",
+    "vitest":            "^2"
   }
 }

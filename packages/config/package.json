@@ -1,0 +1,18 @@
+{
+    "name": "@an-groups/config",
+    "version": "1.0.0",
+    "description": "AN Dev Studio — Shared configuration utilities",
+    "author": "AN GROUPS",
+    "license": "UNLICENSED",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "type-check": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "typescript": "^5"
+    }
+}

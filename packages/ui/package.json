@@ -1,0 +1,24 @@
+{
+    "name": "@an-groups/ui",
+    "version": "1.0.0",
+    "description": "AN Dev Studio — Shared UI component library",
+    "author": "AN GROUPS",
+    "license": "UNLICENSED",
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "type-check": "tsc --noEmit"
+    },
+    "peerDependencies": {
+        "react":     "^19.0.0",
+        "react-dom": "^19.0.0"
+    },
+    "devDependencies": {
+        "@types/react":     "^19",
+        "@types/react-dom": "^19",
+        "typescript":       "^5"
+    }
+}
