@@ -2,7 +2,7 @@
     "framework": "nextjs",
     "buildCommand": "npm run build --workspace=@an-groups/studio",
     "outputDirectory": "apps/studio/.next",
-    "installCommand": "npm install",
+    "installCommand": "npm install && npm install --prefix apps/studio --no-save lightningcss-linux-x64-gnu lightningcss-linux-arm64-gnu",
     "devCommand": "npm run dev --workspace=@an-groups/studio",
     "env": {
         "DEFAULT_PROVIDER": "groq"
