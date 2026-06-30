@@ -1,19 +1,7 @@
 /**
  * ============================================================================
  * AN Dev Studio
- * App Shell
- * ============================================================================
- *
- * The master layout component.
- *
- * Structure:
- *   ┌─────────────────────────────────────────┐
- *   │  Sidebar (240px)  │  TopBar             │
- *   │                   ├─────────────────────┤
- *   │  Navigation       │  Main Content Area  │
- *   │                   │                     │
- *   └───────────────────┴─────────────────────┘
- *
+ * App Shell — master layout with AnuGuide injected platform-wide
  * ============================================================================
  */
 
@@ -22,6 +10,7 @@
 import React, { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { AnuGuide } from "../anu-guide/AnuGuide";
 
 interface AppShellProps {
     children: React.ReactNode;
@@ -76,6 +65,12 @@ export function AppShell({ children, title }: AppShellProps) {
                 </main>
 
             </div>
+
+            {/* ----------------------------------------------------------------
+                ANu Platform Guide — floats on every page
+            ---------------------------------------------------------------- */}
+            <AnuGuide />
+
         </div>
     );
 }

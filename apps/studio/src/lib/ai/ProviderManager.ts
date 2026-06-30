@@ -1,11 +1,13 @@
 // ============================================================================
 // AN Dev Studio — ProviderManager
-// Circuit-breaker failover: Groq → Cerebras → OpenRouter → Gemini → HuggingFace
+// Fallback chain: ANu → Groq → Cerebras → OpenRouter → Gemini → HuggingFace
+// ANu is the in-house model (Ollama). All others are external APIs.
 // ============================================================================
 
 import type { ChatMessage, ChatStreamCallback, IProvider, ProviderStatus, StreamChunk } from "./types";
 import { getAgentPrompt } from "./agentPrompts";
 import {
+    AnuProvider,
     CerebrasProvider,
     GeminiProvider,
     GroqProvider,
@@ -13,20 +15,22 @@ import {
     OpenRouterProvider,
 } from "./providers";
 
-// Circuit breaker: after this many consecutive failures, skip provider for COOLDOWN_MS
-const MAX_FAILURES  = 3;
-const COOLDOWN_MS   = 5 * 60 * 1000; // 5 minutes
+// Circuit breaker: after MAX_FAILURES consecutive failures, skip provider for COOLDOWN_MS
+const MAX_FAILURES = 3;
+const COOLDOWN_MS  = 5 * 60 * 1000; // 5 minutes
 
 interface ProviderHealth {
     failures:    number;
-    lastFailure: number; // timestamp
+    lastFailure: number;
 }
 
 export class ProviderManager {
     private static instance: ProviderManager;
 
-    // Ordered fallback chain
+    // ANu first — in-house, private, zero cost
+    // Then external cloud providers as fallback
     private readonly chain: IProvider[] = [
+        new AnuProvider(),
         new GroqProvider(),
         new CerebrasProvider(),
         new OpenRouterProvider(),
@@ -45,7 +49,7 @@ export class ProviderManager {
         return ProviderManager.instance;
     }
 
-    // ── Public API ──────────────────────────────────────────────────────────
+    // ── Public API ───────────────────────────────────────────────────────────
 
     getStatuses(): ProviderStatus[] {
         return this.chain.map(p => ({
@@ -62,12 +66,12 @@ export class ProviderManager {
     }
 
     async streamChat(
-        messages:         ChatMessage[],
-        agentType:        string | undefined,
+        messages:          ChatMessage[],
+        agentType:         string | undefined,
         preferredProvider: string | undefined,
-        model:            string | undefined,
-        onChunk:          ChatStreamCallback,
-        signal?:          AbortSignal,
+        model:             string | undefined,
+        onChunk:           ChatStreamCallback,
+        signal?:           AbortSignal,
     ): Promise<{ fullText: string; provider: string; model: string; isFallback: boolean }> {
         const systemPrompt = getAgentPrompt(agentType);
         const fullMessages: ChatMessage[] = [
@@ -75,20 +79,24 @@ export class ProviderManager {
             ...messages,
         ];
 
-        // Build ordered provider list: preferred first, then fallbacks
-        const ordered = this.getOrderedChain(preferredProvider);
+        const ordered   = this.getOrderedChain(preferredProvider);
         const available = ordered.filter(p => p.isAvailable() && !this.isCircuitOpen(p.name));
 
         if (available.length === 0) {
             throw new Error(
-                "No AI providers are configured. Add at least one API key in Settings → Providers."
+                "No AI providers are configured.\n\n" +
+                "Quick start: Add GROQ_API_KEY to .env.local (free at console.groq.com) " +
+                "or enable ANu by adding OLLAMA_ENABLED=true and running anu/setup.ps1.",
             );
         }
 
-        let firstAttempt = true;
-        for (const provider of available) {
+        const primaryName = preferredProvider ?? available[0].name;
+        let firstAttempt  = true;
+
+        for (let i = 0; i < available.length; i++) {
+            const provider    = available[i];
             const targetModel = (firstAttempt && model) ? model : provider.defaultModel;
-            firstAttempt = false;
+            firstAttempt      = false;
 
             try {
                 const fullText = await provider.chat(fullMessages, targetModel, onChunk, signal);
@@ -97,7 +105,7 @@ export class ProviderManager {
                     fullText,
                     provider:   provider.name,
                     model:      targetModel,
-                    isFallback: provider.name !== (preferredProvider ?? available[0].name),
+                    isFallback: provider.name !== primaryName,
                 };
             } catch (err) {
                 if (signal?.aborted) throw err;
@@ -106,11 +114,8 @@ export class ProviderManager {
                 const errMsg = err instanceof Error ? err.message : String(err);
                 console.error(`[ProviderManager] ${provider.label} failed: ${errMsg}`);
 
-                // Find next available provider to announce switch
-                const nextIdx  = available.indexOf(provider) + 1;
-                const nextProv = available[nextIdx];
-
-                if (nextProv) {
+                const next = available[i + 1];
+                if (next) {
                     const switchChunk: StreamChunk = {
                         type:          "provider_switch",
                         token:         "",
@@ -118,7 +123,7 @@ export class ProviderManager {
                         model:         targetModel,
                         isFallback:    true,
                         switchingFrom: provider.name,
-                        switchingTo:   nextProv.name,
+                        switchingTo:   next.name,
                     };
                     onChunk(switchChunk);
                 }
@@ -126,7 +131,8 @@ export class ProviderManager {
         }
 
         throw new Error(
-            "All configured AI providers failed. Check rate limits or try again in a few minutes."
+            "All configured AI providers failed. " +
+            "Check API keys, rate limits, or try again in a few minutes.",
         );
     }
 

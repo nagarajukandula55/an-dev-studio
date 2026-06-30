@@ -1,0 +1,6 @@
+# Runtime configuration — contains API keys and secrets
+runtime.json
+
+# Activity and project data — local only
+activity.json
+projects.json

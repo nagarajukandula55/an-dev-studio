@@ -1,205 +1,368 @@
-/**
- * ============================================================================
- * AN Dev Studio
- * Top Bar
- * ============================================================================
- */
-
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
+import Link from "next/link";
 
-interface TopBarProps {
-    title?:        string;
-    sidebarOpen:   boolean;
-    onMenuClick:   () => void;
-}
-
-export function TopBar({ title, sidebarOpen, onMenuClick }: TopBarProps) {
-    return (
-        <header style={{
-            height:      "var(--topbar-height)",
-            display:     "flex",
-            alignItems:  "center",
-            padding:     "0 20px",
-            borderBottom: "1px solid var(--color-border)",
-            background:  "var(--color-bg-surface)",
-            flexShrink:  0,
-            gap:         "12px",
-        }}>
-
-            {/* Menu toggle */}
-            <button
-                onClick={onMenuClick}
-                title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-                style={{
-                    background:  "none",
-                    border:      "none",
-                    cursor:      "pointer",
-                    padding:     "6px",
-                    borderRadius: "6px",
-                    color:       "var(--color-text-muted)",
-                    display:     "flex",
-                    alignItems:  "center",
-                    justifyContent: "center",
-                    flexShrink:  0,
-                    transition:  "background var(--transition-fast), color var(--transition-fast)",
-                }}
-                onMouseEnter={e => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "var(--color-bg-subtle)";
-                    (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text)";
-                }}
-                onMouseLeave={e => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "none";
-                    (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-muted)";
-                }}
-            >
-                <MenuIcon />
-            </button>
-
-            {/* Page title */}
-            {title && (
-                <h1 style={{
-                    margin:     0,
-                    fontSize:   "15px",
-                    fontWeight: 600,
-                    color:      "var(--color-text)",
-                    flex:       1,
-                    overflow:   "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace:  "nowrap",
-                }}>
-                    {title}
-                </h1>
-            )}
-            {!title && <div style={{ flex: 1 }} />}
-
-            {/* Right actions */}
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <ThemeToggle />
-                <UserAvatar />
-            </div>
-        </header>
-    );
-}
-
-// =============================================================================
-// Theme Toggle
-// =============================================================================
+// ---------------------------------------------------------------------------
+// ThemeToggle
+// ---------------------------------------------------------------------------
 
 function ThemeToggle() {
-    const [dark, setDark] = React.useState(() => {
-        if (typeof document === "undefined") return false;
-        return document.documentElement.classList.contains("dark");
-    });
+  const [mounted, setMounted] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
-    function toggle() {
-        const next = !dark;
-        setDark(next);
-        document.documentElement.classList.toggle("dark", next);
-        try { localStorage.setItem("studio-theme", next ? "dark" : "light"); } catch { /* noop */ }
+  useEffect(() => {
+    setIsDark(document.documentElement.classList.contains("dark"));
+    setMounted(true);
+  }, []);
+
+  const toggle = () => {
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
     }
+  };
 
+  // Placeholder rendered during SSR and before mount — same 36×36 dimensions
+  // so layout doesn't shift once the real button mounts.
+  if (!mounted) {
     return (
-        <button
-            onClick={toggle}
-            title={dark ? "Switch to light mode" : "Switch to dark mode"}
-            style={{
-                background:   "none",
-                border:       "none",
-                cursor:       "pointer",
-                padding:      "6px",
-                borderRadius: "6px",
-                color:        "var(--color-text-muted)",
-                display:      "flex",
-                alignItems:   "center",
-                justifyContent: "center",
-                transition:   "background var(--transition-fast), color var(--transition-fast)",
-            }}
-            onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = "var(--color-bg-subtle)";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text)";
-            }}
-            onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.background = "none";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--color-text-muted)";
-            }}
-        >
-            {dark ? <SunIcon /> : <MoonIcon />}
-        </button>
+      <div
+        aria-hidden="true"
+        style={{ width: 36, height: 36, flexShrink: 0 }}
+      />
     );
+  }
+
+  return (
+    <button
+      onClick={toggle}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      style={{
+        width: 36,
+        height: 36,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 8,
+        border: "1px solid var(--border, #e2e8f0)",
+        background: "transparent",
+        cursor: "pointer",
+        color: "var(--foreground, #1a202c)",
+        flexShrink: 0,
+      }}
+    >
+      {isDark ? (
+        // Sun icon
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="5" />
+          <line x1="12" y1="1" x2="12" y2="3" />
+          <line x1="12" y1="21" x2="12" y2="23" />
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+          <line x1="1" y1="12" x2="3" y2="12" />
+          <line x1="21" y1="12" x2="23" y2="12" />
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+        </svg>
+      ) : (
+        // Moon icon
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+        </svg>
+      )}
+    </button>
+  );
 }
 
-// =============================================================================
-// User Avatar
-// =============================================================================
+// ---------------------------------------------------------------------------
+// UserAvatar
+// ---------------------------------------------------------------------------
 
 function UserAvatar() {
-    return (
-        <div
-            title="Account"
-            style={{
-                width:        "30px",
-                height:       "30px",
-                borderRadius: "50%",
-                background:   "var(--color-bg-subtle)",
-                border:       "1px solid var(--color-border)",
-                display:      "flex",
-                alignItems:   "center",
-                justifyContent: "center",
-                cursor:       "pointer",
-                color:        "var(--color-text-muted)",
-                flexShrink:   0,
-            }}
+  return (
+    <div
+      aria-label="User: Nagaraj"
+      title="Nagaraj"
+      style={{
+        width: 36,
+        height: 36,
+        borderRadius: "50%",
+        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#ffffff",
+        fontWeight: 700,
+        fontSize: 13,
+        letterSpacing: "0.05em",
+        flexShrink: 0,
+        userSelect: "none",
+        cursor: "default",
+      }}
+    >
+      NA
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// NotificationBell
+// ---------------------------------------------------------------------------
+
+interface NotificationBellProps {
+  count?: number;
+}
+
+function NotificationBell({ count = 0 }: NotificationBellProps) {
+  return (
+    <button
+      aria-label={
+        count > 0 ? `${count} unread notifications` : "No new notifications"
+      }
+      title={
+        count > 0 ? `${count} unread notifications` : "No new notifications"
+      }
+      style={{
+        width: 36,
+        height: 36,
+        position: "relative",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 8,
+        border: "1px solid var(--border, #e2e8f0)",
+        background: "transparent",
+        cursor: "pointer",
+        color: "var(--foreground, #1a202c)",
+        flexShrink: 0,
+      }}
+    >
+      {/* Bell icon */}
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="18"
+        height="18"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+      </svg>
+
+      {/* Badge */}
+      {count > 0 && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            top: 4,
+            right: 4,
+            minWidth: 16,
+            height: 16,
+            borderRadius: "50%",
+            background: "#ef4444",
+            color: "#ffffff",
+            fontSize: 10,
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 1,
+            padding: "0 3px",
+          }}
         >
-            <UserIcon />
-        </div>
-    );
+          {count > 99 ? "99+" : count}
+        </span>
+      )}
+    </button>
+  );
 }
 
-// =============================================================================
-// Icons
-// =============================================================================
+// ---------------------------------------------------------------------------
+// ANuStatusPill
+// ---------------------------------------------------------------------------
 
-function MenuIcon() {
-    return (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="3" y1="6"  x2="21" y2="6"/>
-            <line x1="3" y1="12" x2="21" y2="12"/>
-            <line x1="3" y1="18" x2="21" y2="18"/>
-        </svg>
-    );
+type AnuStatus = "loading" | "running" | "stopped";
+
+function ANuStatusPill() {
+  const [status, setStatus] = useState<AnuStatus>("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/anu/status", { method: "GET" })
+      .then((res) => {
+        if (!cancelled) {
+          setStatus(res.ok ? "running" : "stopped");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setStatus("stopped");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const isRunning = status === "running";
+  const dotColor = status === "loading" ? "#f59e0b" : isRunning ? "#22c55e" : "#9ca3af";
+  const label =
+    status === "loading"
+      ? "ANu — checking status"
+      : isRunning
+      ? "ANu — running"
+      : "ANu — not running";
+
+  return (
+    <Link
+      href="/settings#anu"
+      aria-label={label}
+      title={label}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 5,
+        paddingLeft: 8,
+        paddingRight: 10,
+        height: 28,
+        borderRadius: 999,
+        border: "1px solid var(--border, #e2e8f0)",
+        background: "var(--surface, #f8fafc)",
+        textDecoration: "none",
+        color: "var(--foreground, #1a202c)",
+        fontSize: 12,
+        fontWeight: 600,
+        letterSpacing: "0.02em",
+        flexShrink: 0,
+        transition: "background 0.15s",
+      }}
+    >
+      {/* Status dot */}
+      <span
+        aria-hidden="true"
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: "50%",
+          background: dotColor,
+          flexShrink: 0,
+          transition: "background 0.3s",
+          boxShadow: isRunning ? `0 0 0 2px ${dotColor}33` : "none",
+        }}
+      />
+      ANu
+    </Link>
+  );
 }
 
-function SunIcon() {
-    return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="12" cy="12" r="5"/>
-            <line x1="12" y1="1"  x2="12" y2="3"/>
-            <line x1="12" y1="21" x2="12" y2="23"/>
-            <line x1="4.22" y1="4.22"  x2="5.64" y2="5.64"/>
-            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
-            <line x1="1"  y1="12" x2="3"  y2="12"/>
-            <line x1="21" y1="12" x2="23" y2="12"/>
-            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
-            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
-        </svg>
-    );
-}
+// ---------------------------------------------------------------------------
+// TopBar
+// ---------------------------------------------------------------------------
 
-function MoonIcon() {
-    return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+export function TopBar() {
+  return (
+    <header
+      role="banner"
+      style={{
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+        width: "100%",
+        height: 56,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        paddingLeft: 16,
+        paddingRight: 16,
+        borderBottom: "1px solid var(--border, #e2e8f0)",
+        background: "var(--background, #ffffff)",
+        boxSizing: "border-box",
+      }}
+    >
+      {/* Left: Logo / brand */}
+      <Link
+        href="/"
+        aria-label="Go to home"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          textDecoration: "none",
+          color: "var(--foreground, #1a202c)",
+          fontWeight: 700,
+          fontSize: 16,
+          letterSpacing: "-0.01em",
+        }}
+      >
+        {/* Studio logo mark */}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+          style={{ color: "#6366f1" }}
+        >
+          <polygon points="12 2 2 7 12 12 22 7 12 2" />
+          <polyline points="2 17 12 22 22 17" />
+          <polyline points="2 12 12 17 22 12" />
         </svg>
-    );
-}
+        Studio
+      </Link>
 
-function UserIcon() {
-    return (
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
-        </svg>
-    );
+      {/* Right: controls */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <ANuStatusPill />
+        <UserAvatar />
+        <NotificationBell count={3} />
+        <ThemeToggle />
+      </div>
+    </header>
+  );
 }
