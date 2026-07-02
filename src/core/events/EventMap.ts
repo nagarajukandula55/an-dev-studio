@@ -55,6 +55,32 @@ export interface SystemBootPayload {
 
 }
 
+export interface AgentStartedPayload {
+
+  role: string;
+
+  taskId: string;
+
+}
+
+export interface AgentCompletedPayload {
+
+  role: string;
+
+  success: boolean;
+
+  output: unknown;
+
+}
+
+export interface AgentFailedPayload {
+
+  role: string;
+
+  message: string;
+
+}
+
 /**
  * ============================================================================
  * Event Registry
@@ -70,5 +96,11 @@ export interface EventMap {
   "module.failed": ModuleFailedPayload;
 
   "system.boot": SystemBootPayload;
+
+  "agent.started": AgentStartedPayload;
+
+  "agent.completed": AgentCompletedPayload;
+
+  "agent.failed": AgentFailedPayload;
 
 }

@@ -38,6 +38,10 @@ export type ConfigValue =
     | ConfigValue[]
     | ConfigSchema;
 
+type DeepPartial<T> = {
+    [K in keyof T]?: T[K] extends ConfigSchema ? DeepPartial<T[K]> : T[K];
+};
+
 /**
  * Safely read an environment variable, returning the fallback if absent.
  */
@@ -73,7 +77,7 @@ export function envBool(key: string, fallback = false): boolean {
 
 export function deepMerge<T extends ConfigSchema>(
     base:     T,
-    override: Partial<T>,
+    override: DeepPartial<T>,
 ): T {
     const result = { ...base };
     for (const key of Object.keys(override) as (keyof T)[]) {
@@ -89,7 +93,7 @@ export function deepMerge<T extends ConfigSchema>(
         ) {
             result[key] = deepMerge(
                 bv as ConfigSchema,
-                ov as Partial<ConfigSchema>,
+                ov as DeepPartial<ConfigSchema>,
             ) as T[keyof T];
         } else if (ov !== undefined) {
             result[key] = ov as T[keyof T];

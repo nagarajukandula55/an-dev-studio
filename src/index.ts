@@ -20,8 +20,7 @@ async function main(): Promise<void> {
 
     try {
         log.info("Starting AN Dev Studio platform…");
-        const kernel = StudioKernel.getInstance();
-        await kernel.boot();
+        await StudioKernel.boot();
         log.info("AN Dev Studio is running");
     } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));

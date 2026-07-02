@@ -1,4 +1,5 @@
 import { BaseEvent } from "./Event";
+import { EventMap } from "./EventMap";
 
 /**
  * ============================================================================
@@ -11,12 +12,13 @@ import { BaseEvent } from "./Event";
  */
 
 export class EventFactory {
-  public static create<TPayload>(
-    type: string,
-    payload: TPayload,
+  public static create<K extends keyof EventMap>(
+    type: K,
+    payload: EventMap[K],
     source?: string
-  ): BaseEvent<string, TPayload> {
+  ): BaseEvent<K, EventMap[K]> {
     return {
+      id: `${type}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
       type,
       payload,
       source,

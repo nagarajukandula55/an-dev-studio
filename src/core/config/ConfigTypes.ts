@@ -25,4 +25,8 @@ export interface ConfigEntry<T = ConfigValue> {
 
     readonly?: boolean;
 
+    scope?: "global" | "user" | "workspace";
+
 }
+
+export type { ConfigSnapshot } from "./ConfigSnapshot";

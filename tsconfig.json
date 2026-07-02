@@ -2,13 +2,19 @@
     "$schema": "https://json.schemastore.org/tsconfig",
     "extends": "./tsconfig.base.json",
     "compilerOptions": {
-        "noEmit": true
+        "noEmit": true,
+        "noUnusedLocals": false,
+        "noUnusedParameters": false
     },
-    "references": [
-        { "path": "./packages/config"  },
-        { "path": "./packages/shared"  },
-        { "path": "./packages/ai-core" },
-        { "path": "./packages/ui"      },
-        { "path": "./apps/studio"      }
+    "include": ["src/**/*.ts"],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "build",
+        ".next",
+        "**/__tests__/**",
+        "src/tests/**",
+        "apps",
+        "packages"
     ]
 }

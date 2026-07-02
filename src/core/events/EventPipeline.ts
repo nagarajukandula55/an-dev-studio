@@ -30,6 +30,11 @@ export interface EventContext<
   event: TypedEvent<K>;
 
   /**
+   * Convenience alias for event.payload.
+   */
+  payload: EventMap[K];
+
+  /**
    * Stop propagation.
    */
   cancelled: boolean;

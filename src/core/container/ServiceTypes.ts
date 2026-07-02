@@ -27,7 +27,7 @@ export interface ServiceDescriptor<T = unknown> {
   /**
    * Service token.
    */
-  token: string;
+  token: string | symbol;
 
   /**
    * Factory used to create the service.

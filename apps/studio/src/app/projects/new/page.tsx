@@ -839,7 +839,7 @@ function Step3AiSetup({ state, onBack, onSubmit, submitting, submitError }: Step
               lineHeight: 1.6,
             }}
           >
-            Click "Create Project" to proceed. ANu will generate the initial file structure,
+            Click &quot;Create Project&quot; to proceed. ANu will generate the initial file structure,
             boilerplate, and configuration files based on your selections.
           </p>
         </div>

@@ -114,6 +114,8 @@ export class ConfigManager {
                 c => c.readonly
             ).length,
 
+            environment: "development",
+
             keys: values.map(
                 c => c.key
             ),

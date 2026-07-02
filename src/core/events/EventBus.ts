@@ -74,6 +74,8 @@ export class EventBus {
 
             event,
 
+            payload: event.payload,
+
             cancelled: false,
 
             metadata: {},
@@ -152,6 +154,8 @@ export class EventBus {
         const context: EventContext<K> = {
 
             event,
+
+            payload: event.payload,
 
             cancelled: false,
 

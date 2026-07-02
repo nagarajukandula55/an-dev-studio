@@ -1810,7 +1810,7 @@ function DeploymentTab({ addToast }: { addToast: (msg: string, type: Toast["type
               type="password"
               placeholder="Enter Vercel token..."
               value={vercelToken}
-              onFocus={(e) => {
+              onFocus={() => {
                 if (vercelTokenMasked) setVercelToken("");
               }}
               onChange={(e) => setVercelToken(e.target.value)}

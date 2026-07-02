@@ -294,7 +294,13 @@ function ANuStatusPill() {
 // TopBar
 // ---------------------------------------------------------------------------
 
-export function TopBar() {
+interface TopBarProps {
+  title?: string;
+  sidebarOpen?: boolean;
+  onMenuClick?: () => void;
+}
+
+export function TopBar({ title, sidebarOpen = true, onMenuClick }: TopBarProps) {
   return (
     <header
       role="banner"
@@ -315,40 +321,86 @@ export function TopBar() {
       }}
     >
       {/* Left: Logo / brand */}
-      <Link
-        href="/"
-        aria-label="Go to home"
+      <div
         style={{
           display: "flex",
           alignItems: "center",
           gap: 8,
-          textDecoration: "none",
           color: "var(--foreground, #1a202c)",
-          fontWeight: 700,
-          fontSize: 16,
-          letterSpacing: "-0.01em",
         }}
       >
-        {/* Studio logo mark */}
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-          style={{ color: "#6366f1" }}
+        {onMenuClick && (
+          <button
+            type="button"
+            onClick={onMenuClick}
+            aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            style={{
+              width: 36,
+              height: 36,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: 8,
+              border: "1px solid var(--border, #e2e8f0)",
+              background: "transparent",
+              cursor: "pointer",
+              color: "var(--foreground, #1a202c)",
+            }}
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="6" x2="20" y2="6" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="18" x2="20" y2="18" />
+            </svg>
+          </button>
+        )}
+        <Link
+          href="/"
+          aria-label="Go to home"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            textDecoration: "none",
+            color: "inherit",
+            fontWeight: 700,
+            fontSize: 16,
+            letterSpacing: "-0.01em",
+          }}
         >
-          <polygon points="12 2 2 7 12 12 22 7 12 2" />
-          <polyline points="2 17 12 22 22 17" />
-          <polyline points="2 12 12 17 22 12" />
-        </svg>
-        Studio
-      </Link>
+          {/* Studio logo mark */}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            style={{ color: "#6366f1" }}
+          >
+            <polygon points="12 2 2 7 12 12 22 7 12 2" />
+            <polyline points="2 17 12 22 22 17" />
+            <polyline points="2 12 12 17 22 12" />
+          </svg>
+          {title ?? "Studio"}
+        </Link>
+      </div>
 
       {/* Right: controls */}
       <div
