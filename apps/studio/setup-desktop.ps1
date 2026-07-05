@@ -94,6 +94,23 @@ if (Test-Command "ollama") {
     winget install --id Ollama.Ollama -e --accept-source-agreements --accept-package-agreements
 }
 
+# ── 4b. Docker Desktop (sandboxes commands the Builder agent proposes) ─────
+# The Builder feature (src/agents/) runs approved shell commands inside a
+# Docker container scoped to the project folder rather than directly on this
+# machine. Without Docker it still works, but commands fall back to running
+# directly on the host — install this if you want the isolation.
+
+Write-Step "Checking Docker Desktop (sandboxes commands the Builder agent runs)"
+if (Test-Command "docker") {
+    Write-Host "Docker already installed: $(docker --version)"
+} else {
+    Test-WingetAvailable
+    Write-Host "Installing Docker Desktop via winget..."
+    winget install --id Docker.DockerDesktop -e --accept-source-agreements --accept-package-agreements
+    Write-Host "Docker Desktop installed. You'll need to launch it once and finish its own first-run setup" -ForegroundColor Yellow
+    Write-Host "(it may also require a Windows restart to enable WSL2/virtualization features)." -ForegroundColor Yellow
+}
+
 # ── 5. Project dependencies ─────────────────────────────────────────────────
 
 Write-Step "Installing project dependencies (npm install)"

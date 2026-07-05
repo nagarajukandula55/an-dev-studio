@@ -35,6 +35,7 @@ const NAV_SECTIONS: NavSection[] = [
         title: "Core",
         items: [
             { href: "/",          label: "Dashboard",  icon: <DashboardIcon /> },
+            { href: "/builder",   label: "Builder",    icon: <AppIcon /> },
             { href: "/projects",  label: "Projects",   icon: <ProjectsIcon /> },
             { href: "/workspace", label: "Workspace",  icon: <WorkspaceIcon /> },
             { href: "/ai",        label: "AI Studio",  icon: <AIIcon /> },
