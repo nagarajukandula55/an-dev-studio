@@ -9,24 +9,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest } from "next/server";
-import fs from "fs";
-import path from "path";
-
-const CONFIG_FILE = path.join(process.cwd(), "config", "runtime.json");
-
-const ALLOWED_KEYS = new Set([
-    "GROQ_API_KEY",
-    "CEREBRAS_API_KEY",
-    "OPENROUTER_API_KEY",
-    "GOOGLE_AI_API_KEY",
-    "HF_TOKEN",
-    "OLLAMA_ENABLED",
-    "OLLAMA_HOST",
-    "OLLAMA_DEFAULT_MODEL",
-    "VERCEL_TOKEN",
-    "VERCEL_ORG_ID",
-    "VERCEL_PROJECT_ID",
-]);
+import {
+    ALLOWED_RUNTIME_KEYS as ALLOWED_KEYS,
+    readRuntimeStore as readStore,
+    writeRuntimeStore as writeStore,
+    isRuntimeConfigPersistent,
+} from "@/lib/configStore";
 
 type ProviderSource = "env" | "config" | "none";
 
@@ -47,35 +35,14 @@ interface ConfigResponse {
     deployment: {
         vercelToken:   { configured: boolean; source: ProviderSource };
     };
+    // Whether saved keys survive a redeploy/cold start. False on serverless
+    // hosts (e.g. Vercel) where only /tmp is writable and is not persistent —
+    // the Settings UI surfaces this so users know to also set real
+    // environment variables for anything they want to keep long-term.
+    persistent: boolean;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
-
-function ensureDir(): void {
-    const dir = path.dirname(CONFIG_FILE);
-    if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-    }
-}
-
-function readStore(): Record<string, string> {
-    try {
-        const raw = fs.readFileSync(CONFIG_FILE, "utf-8");
-        const parsed = JSON.parse(raw);
-        if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
-            return parsed as Record<string, string>;
-        }
-        return {};
-    } catch (e: unknown) {
-        if ((e as NodeJS.ErrnoException).code === "ENOENT") return {};
-        throw e;
-    }
-}
-
-function writeStore(data: Record<string, string>): void {
-    ensureDir();
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(data, null, 2), "utf-8");
-}
 
 function getKey(key: string, store: Record<string, string>): { value: string | undefined; source: ProviderSource } {
     if (process.env[key]) return { value: process.env[key], source: "env" };
@@ -125,6 +92,7 @@ export async function GET(): Promise<Response> {
                 source:     vercelToken.source,
             },
         },
+        persistent: isRuntimeConfigPersistent(),
     };
 
     return Response.json(resp);

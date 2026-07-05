@@ -1,7 +1,20 @@
 import * as fs from "fs";
 import * as path from "path";
 
-const CONFIG_PATH = path.join(process.cwd(), "config", "runtime.json");
+// On Vercel (and most serverless hosts) the deployment bundle is read-only —
+// only /tmp is writable, and it does not persist across cold starts or
+// across separate function instances. Detect that case and fall back to
+// /tmp so writes don't throw; on a normal server/local dev, config/runtime.json
+// persists normally across restarts.
+const IS_SERVERLESS = Boolean(process.env.VERCEL) || Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
+
+const CONFIG_PATH = IS_SERVERLESS
+  ? path.join("/tmp", "an-dev-studio-runtime.json")
+  : path.join(process.cwd(), "config", "runtime.json");
+
+export function isRuntimeConfigPersistent(): boolean {
+  return !IS_SERVERLESS;
+}
 
 function readConfigFile(): { [key: string]: string } {
   try {
@@ -37,16 +50,8 @@ export function getRuntimeConfig(): { [key: string]: string } {
   return merged;
 }
 
-const PROVIDER_KEY_MAP: { [provider: string]: string } = {
-  groq: "GROQ_API_KEY",
-  cerebras: "CEREBRAS_API_KEY",
-  openrouter: "OPENROUTER_API_KEY",
-  gemini: "GOOGLE_AI_API_KEY",
-  huggingface: "HF_TOKEN",
-};
-
 export function getProviderKey(providerName: string): string | undefined {
-  const envKey = PROVIDER_KEY_MAP[providerName.toLowerCase()];
+  const envKey = PROVIDER_ENV_VAR[providerName.toLowerCase()];
   if (!envKey) {
     return undefined;
   }
@@ -70,3 +75,44 @@ export function getOllamaConfig(): {
 
   return { enabled, host, defaultModel };
 }
+
+// ── Shared read/write helpers for the /api/config route ────────────────────
+// Centralized here (rather than duplicated in the route handler) so the
+// route and the providers always agree on where the file lives.
+
+export const ALLOWED_RUNTIME_KEYS = new Set([
+  "GROQ_API_KEY",
+  "CEREBRAS_API_KEY",
+  "OPENROUTER_API_KEY",
+  "GOOGLE_AI_API_KEY",
+  "HF_TOKEN",
+  "OLLAMA_ENABLED",
+  "OLLAMA_HOST",
+  "OLLAMA_DEFAULT_MODEL",
+  "VERCEL_TOKEN",
+  "VERCEL_ORG_ID",
+  "VERCEL_PROJECT_ID",
+]);
+
+export function readRuntimeStore(): Record<string, string> {
+  return readConfigFile();
+}
+
+export function writeRuntimeStore(data: Record<string, string>): void {
+  const dir = path.dirname(CONFIG_PATH);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+  fs.writeFileSync(CONFIG_PATH, JSON.stringify(data, null, 2), "utf-8");
+}
+
+// Provider id (as used by ProviderManager / the UI) -> the env var it reads.
+// Single source of truth shared by the API route, the Settings UI contract,
+// and getProviderKey() above.
+export const PROVIDER_ENV_VAR: { [provider: string]: string } = {
+  groq: "GROQ_API_KEY",
+  cerebras: "CEREBRAS_API_KEY",
+  openrouter: "OPENROUTER_API_KEY",
+  gemini: "GOOGLE_AI_API_KEY",
+  huggingface: "HF_TOKEN",
+};

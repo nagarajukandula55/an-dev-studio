@@ -472,9 +472,26 @@ Keep responses focused and actionable. Max 300 words unless the user asks for mo
 function MessageBubble({ message, streaming }: { message: Message; streaming: boolean }) {
     const isAnu = message.role === "anu";
 
-    // Simple markdown renderer: bold, code, numbered lists
-    function renderMarkdown(text: string): string {
+    // Simple markdown renderer: bold, code, numbered lists.
+    //
+    // message.content is model-generated text (from a third-party AI
+    // provider, or a locally-run model). It must be HTML-escaped before any
+    // markup is applied — otherwise a model response containing something
+    // like "<img src=x onerror=...>" (which prompt injection can induce)
+    // would execute as real HTML/JS in the user's browser via the
+    // dangerouslySetInnerHTML below. Escape first, then only introduce the
+    // small set of hardcoded, trusted tags this function itself emits.
+    function escapeHtml(text: string): string {
         return text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function renderMarkdown(text: string): string {
+        return escapeHtml(text)
             .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
             .replace(/`([^`]+)`/g, "<code style='background:rgba(99,102,241,0.1);padding:1px 5px;border-radius:4px;font-size:11.5px;font-family:monospace'>$1</code>")
             .replace(/^(\d+)\. (.+)$/gm, "<div style='margin:3px 0;padding-left:4px'><strong>$1.</strong> $2</div>")

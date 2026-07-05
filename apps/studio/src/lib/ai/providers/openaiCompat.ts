@@ -8,13 +8,17 @@ import type { ChatMessage, ChatStreamCallback, IProvider, ModelInfo } from "../t
 export abstract class OpenAICompatProvider implements IProvider {
     abstract readonly name: string;
     abstract readonly label: string;
-    abstract readonly baseUrl: string;
-    abstract readonly apiKey: string;
     abstract readonly defaultModel: string;
     abstract readonly models: ModelInfo[];
 
+    // Resolved fresh on every call (not cached at construction time) so keys
+    // and hosts saved via the Settings UI (config/runtime.json, or /tmp on
+    // serverless) take effect immediately without a server restart.
+    abstract getApiKey(): string;
+    abstract getBaseUrl(): string;
+
     isAvailable(): boolean {
-        return Boolean(this.apiKey?.trim());
+        return Boolean(this.getApiKey()?.trim());
     }
 
     extraHeaders(): Record<string, string> {
@@ -28,12 +32,13 @@ export abstract class OpenAICompatProvider implements IProvider {
         signal?: AbortSignal,
     ): Promise<string> {
         const targetModel = model || this.defaultModel;
+        const apiKey = this.getApiKey();
 
-        const response = await fetch(`${this.baseUrl}/chat/completions`, {
+        const response = await fetch(`${this.getBaseUrl()}/chat/completions`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Bearer ${this.apiKey}`,
+                "Authorization": `Bearer ${apiKey}`,
                 ...this.extraHeaders(),
             },
             body: JSON.stringify({

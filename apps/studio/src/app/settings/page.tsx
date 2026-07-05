@@ -908,27 +908,41 @@ function ProvidersTab({ addToast }: { addToast: (msg: string, type: Toast["type"
     return initial;
   });
 
+  const [keyStoragePersistent, setKeyStoragePersistent] = useState(true);
+
   useEffect(() => {
+    // Matches the actual /api/config GET response shape:
+    // { providers: { <providerId>: { configured, source: "env"|"config"|"none" } }, ollama: {...}, persistent }
+    // Note: the API never returns the raw key value (by design, for
+    // security) — only whether one is configured and where it came from.
     fetch("/api/config")
-      .then((r) => r.ok ? r.json() : null)
-      .then((data: Record<string, { value: string; source: string }> | null) => {
-        if (!data) return;
-        setProviderStates((prev) => {
-          const next = { ...prev };
-          for (const p of PROVIDERS) {
-            const entry = data[p.envVar];
-            if (entry) {
-              next[p.id] = {
-                ...next[p.id],
-                keyValue: entry.value ? "••••••••" : "",
-                savedInApp: entry.source === "file",
-                fromEnv: entry.source === "env",
-              };
+      .then((r) => (r.ok ? r.json() : null))
+      .then(
+        (
+          data: {
+            providers: Record<string, { configured: boolean; source: "env" | "config" | "none" }>;
+            persistent?: boolean;
+          } | null
+        ) => {
+          if (!data) return;
+          if (typeof data.persistent === "boolean") setKeyStoragePersistent(data.persistent);
+          setProviderStates((prev) => {
+            const next = { ...prev };
+            for (const p of PROVIDERS) {
+              const entry = data.providers?.[p.id];
+              if (entry) {
+                next[p.id] = {
+                  ...next[p.id],
+                  keyValue: entry.configured ? "••••••••" : "",
+                  savedInApp: entry.configured && entry.source === "config",
+                  fromEnv: entry.configured && entry.source === "env",
+                };
+              }
             }
-          }
-          return next;
-        });
-      })
+            return next;
+          });
+        }
+      )
       .catch(() => {});
   }, []);
 
@@ -1005,23 +1019,72 @@ function ProvidersTab({ addToast }: { addToast: (msg: string, type: Toast["type"
     async (provider: ProviderConfig) => {
       updateState(provider.id, { testing: true, testResult: null });
       try {
+        // provider.id ("anu-ollama") doesn't match the backend provider name
+        // ("anu") that ProviderManager expects — map it so the test actually
+        // forces the intended provider instead of silently falling through
+        // to the default fallback chain.
+        const backendProviderName = provider.id === "anu-ollama" ? "anu" : provider.id;
+
         const res = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             messages: [{ role: "user", content: "ping" }],
-            provider: provider.id,
+            provider: backendProviderName,
           }),
         });
+
+        // /api/chat always responds 200 immediately (it's a streaming SSE
+        // response) — success/failure is reported as events *inside* the
+        // stream, not via the HTTP status. Read the stream and look for an
+        // "error" event to know whether the provider call actually worked.
+        let succeeded = res.ok;
+        let sawEvent = false;
+        if (res.ok && res.body) {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          try {
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split("\n\n");
+              buffer = lines.pop() ?? "";
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed.startsWith("data:")) continue;
+                try {
+                  const evt = JSON.parse(trimmed.slice(5).trim()) as { type?: string };
+                  if (evt.type === "error") {
+                    succeeded = false;
+                    sawEvent = true;
+                  } else if (evt.type === "meta" || evt.type === "done") {
+                    sawEvent = true;
+                  }
+                } catch {
+                  // ignore malformed SSE chunk
+                }
+              }
+            }
+          } finally {
+            reader.releaseLock();
+          }
+          // No events at all (e.g. empty stream) means we can't confirm success.
+          if (!sawEvent) succeeded = false;
+        } else {
+          succeeded = false;
+        }
+
         updateState(provider.id, {
           testing: false,
-          testResult: res.ok ? "success" : "error",
+          testResult: succeeded ? "success" : "error",
         });
         addToast(
-          res.ok
+          succeeded
             ? `${provider.label} connection successful`
             : `${provider.label} connection failed`,
-          res.ok ? "success" : "error"
+          succeeded ? "success" : "error"
         );
       } catch {
         updateState(provider.id, { testing: false, testResult: "error" });
@@ -1066,6 +1129,13 @@ function ProvidersTab({ addToast }: { addToast: (msg: string, type: Toast["type"
             which is gitignored. For production deployments, add them as{" "}
             <strong>Vercel Environment Variables</strong> — they take precedence automatically.
           </div>
+          {!keyStoragePersistent && (
+            <div style={{ fontSize: 12, color: "#92400e", lineHeight: 1.6, marginTop: 6, fontWeight: 600 }}>
+              ⚠️ This deployment&apos;s filesystem is read-only — keys saved here are written to a
+              temporary location and may be lost on the next cold start or redeploy. Set them as
+              real Vercel Environment Variables instead for anything you want to keep.
+            </div>
+          )}
         </div>
       </div>
 

@@ -1,5 +1,11 @@
 import { Agent } from "../core/Agent";
 import { AgentRole } from "../types/AgentTypes";
+import { StrategyAgent } from "../impl/executive/StrategyAgent";
+import { SimulationAgent } from "../impl/executive/SimulationAgent";
+import { GlobalOptimizationAgent } from "../impl/executive/GlobalOptimizationAgent";
+import { ResourceAllocationAgent } from "../impl/executive/ResourceAllocationAgent";
+import { LongTermPlanningAgent } from "../impl/executive/LongTermPlanningAgent";
+import { CrossDomainReasoningAgent } from "../impl/executive/CrossDomainReasoningAgent";
 
 /**
  * ============================================================================
@@ -32,4 +38,13 @@ export class AgentRegistry {
   public static clear(): void {
     this.agents.clear();
   }
+}
+
+export function registerExecutiveAgents(registry: any) {
+  registry.register("strategy", new StrategyAgent());
+  registry.register("simulation", new SimulationAgent());
+  registry.register("globalOptimization", new GlobalOptimizationAgent());
+  registry.register("resourceAllocation", new ResourceAllocationAgent());
+  registry.register("longTermPlanning", new LongTermPlanningAgent());
+  registry.register("crossDomainReasoning", new CrossDomainReasoningAgent());
 }

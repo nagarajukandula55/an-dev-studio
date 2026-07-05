@@ -8,13 +8,18 @@
 
 import type { ModelInfo } from "../types";
 import { OpenAICompatProvider } from "./openaiCompat";
+import { getOllamaConfig } from "@/lib/configStore";
 
 export class AnuProvider extends OpenAICompatProvider {
     readonly name    = "anu";
     readonly label   = "ANu (In-house)";
-    readonly baseUrl: string;
-    readonly apiKey  = ""; // Ollama requires no API key
-    readonly defaultModel: string;
+
+    // Ollama host/enabled/model are read live via getOllamaConfig() below,
+    // so toggling ANu on/off or changing the host in Settings takes effect
+    // without a restart.
+    get defaultModel(): string {
+        return getOllamaConfig().defaultModel;
+    }
 
     readonly models: ModelInfo[] = [
         { id: "anu",               name: "ANu (Custom)",      contextLength: 8192,   description: "Your fine-tuned in-house model",         free: true },
@@ -26,16 +31,20 @@ export class AnuProvider extends OpenAICompatProvider {
         { id: "deepseek-coder:6.7b", name: "DeepSeek Coder 6.7B", contextLength: 16384, description: "Excellent at code completion",      free: true },
     ];
 
-    constructor() {
-        super();
-        this.baseUrl     = `${process.env.OLLAMA_HOST ?? "http://localhost:11434"}/v1`;
-        this.defaultModel = process.env.OLLAMA_DEFAULT_MODEL ?? "anu";
+    // Ollama requires no API key.
+    getApiKey(): string {
+        return "";
     }
 
-    // ANu is enabled when the operator explicitly turns it on in .env.local
-    // This prevents latency from failed connection attempts when Ollama isn't running
+    getBaseUrl(): string {
+        return `${getOllamaConfig().host}/v1`;
+    }
+
+    // ANu is enabled when the operator explicitly turns it on (Settings UI or
+    // OLLAMA_ENABLED=true). This prevents latency from failed connection
+    // attempts when Ollama isn't running.
     isAvailable(): boolean {
-        return process.env.OLLAMA_ENABLED === "true";
+        return getOllamaConfig().enabled;
     }
 
     // Ollama accepts empty or any string for the Bearer token

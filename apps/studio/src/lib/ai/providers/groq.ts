@@ -1,11 +1,10 @@
 import type { ModelInfo } from "../types";
 import { OpenAICompatProvider } from "./openaiCompat";
+import { getProviderKey } from "@/lib/configStore";
 
 export class GroqProvider extends OpenAICompatProvider {
     readonly name = "groq";
     readonly label = "Groq";
-    readonly baseUrl = "https://api.groq.com/openai/v1";
-    readonly apiKey: string;
     readonly defaultModel = "llama-3.3-70b-versatile";
 
     readonly models: ModelInfo[] = [
@@ -16,8 +15,11 @@ export class GroqProvider extends OpenAICompatProvider {
         { id: "llama-3.1-70b-versatile",     name: "Llama 3.1 70B",        contextLength: 128000, description: "Previous gen 70B",       free: true },
     ];
 
-    constructor() {
-        super();
-        this.apiKey = process.env.GROQ_API_KEY ?? "";
+    getApiKey(): string {
+        return getProviderKey("groq") ?? "";
+    }
+
+    getBaseUrl(): string {
+        return "https://api.groq.com/openai/v1";
     }
 }

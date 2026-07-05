@@ -4,12 +4,12 @@
 // ============================================================================
 
 import type { ChatMessage, ChatStreamCallback, IProvider, ModelInfo } from "../types";
+import { getProviderKey } from "@/lib/configStore";
 
 export class GeminiProvider implements IProvider {
     readonly name = "gemini";
     readonly label = "Google Gemini";
     readonly defaultModel = "gemini-1.5-flash";
-    private readonly apiKey: string;
 
     readonly models: ModelInfo[] = [
         { id: "gemini-1.5-flash",       name: "Gemini 1.5 Flash",   contextLength: 1048576, description: "Fast, free tier",        free: true },
@@ -17,12 +17,14 @@ export class GeminiProvider implements IProvider {
         { id: "gemini-1.5-pro",         name: "Gemini 1.5 Pro",     contextLength: 2097152, description: "Best quality (limited)", free: false },
     ];
 
-    constructor() {
-        this.apiKey = process.env.GOOGLE_AI_API_KEY ?? "";
+    // Resolved fresh on every call so a key saved via the Settings UI takes
+    // effect immediately without a server restart.
+    private getApiKey(): string {
+        return getProviderKey("gemini") ?? "";
     }
 
     isAvailable(): boolean {
-        return Boolean(this.apiKey?.trim());
+        return Boolean(this.getApiKey()?.trim());
     }
 
     async chat(
@@ -32,6 +34,7 @@ export class GeminiProvider implements IProvider {
         signal?: AbortSignal,
     ): Promise<string> {
         const targetModel = model || this.defaultModel;
+        const apiKey = this.getApiKey();
 
         // Separate system message from conversation
         const systemMessage = messages.find(m => m.role === "system");
@@ -49,7 +52,7 @@ export class GeminiProvider implements IProvider {
         }
         body.generationConfig = { maxOutputTokens: 4096, temperature: 0.7 };
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:streamGenerateContent?key=${this.apiKey}&alt=sse`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:streamGenerateContent?key=${apiKey}&alt=sse`;
 
         const response = await fetch(url, {
             method: "POST",

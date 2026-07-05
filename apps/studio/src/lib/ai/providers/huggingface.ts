@@ -1,13 +1,12 @@
 import type { ModelInfo } from "../types";
 import { OpenAICompatProvider } from "./openaiCompat";
+import { getProviderKey } from "@/lib/configStore";
 
 // HuggingFace Inference API — OpenAI-compatible endpoint
 // Free tier available at https://huggingface.co/settings/tokens
 export class HuggingFaceProvider extends OpenAICompatProvider {
     readonly name = "huggingface";
     readonly label = "HuggingFace";
-    readonly baseUrl = "https://api-inference.huggingface.co/v1";
-    readonly apiKey: string;
     readonly defaultModel = "mistralai/Mistral-7B-Instruct-v0.3";
 
     readonly models: ModelInfo[] = [
@@ -16,8 +15,11 @@ export class HuggingFaceProvider extends OpenAICompatProvider {
         { id: "HuggingFaceH4/zephyr-7b-beta",          name: "Zephyr 7B Beta", contextLength: 8192,  description: "HF fine-tuned Mistral",  free: true },
     ];
 
-    constructor() {
-        super();
-        this.apiKey = process.env.HF_TOKEN ?? "";
+    getApiKey(): string {
+        return getProviderKey("huggingface") ?? "";
+    }
+
+    getBaseUrl(): string {
+        return "https://api-inference.huggingface.co/v1";
     }
 }
