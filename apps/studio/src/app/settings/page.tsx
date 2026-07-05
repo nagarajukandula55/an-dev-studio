@@ -608,6 +608,24 @@ function AIAgentsTab({ addToast }: { addToast: (msg: string, type: Toast["type"]
 
 type AnuStatus = "checking" | "running" | "stopped";
 
+// Curated popular Ollama models for the in-app "browse and pull" library.
+// Users can also pull any other Ollama tag via the "Pull by name" box below.
+const OLLAMA_LIBRARY: { id: string; label: string; size: string; description: string }[] = [
+  { id: "llama3.1:8b", label: "Llama 3.1 8B", size: "~4.7 GB", description: "Balanced quality & speed, general purpose" },
+  { id: "qwen2.5-coder:7b", label: "Qwen 2.5 Coder 7B", size: "~4.7 GB", description: "Best for code generation" },
+  { id: "deepseek-coder:6.7b", label: "DeepSeek Coder 6.7B", size: "~3.8 GB", description: "Excellent at code completion" },
+  { id: "codellama:13b", label: "CodeLlama 13B", size: "~7.4 GB", description: "Code-specialized, strong performance" },
+  { id: "mistral:7b", label: "Mistral 7B", size: "~4.1 GB", description: "Fast & capable general model" },
+  { id: "llama3.1:70b", label: "Llama 3.1 70B", size: "~40 GB", description: "Best quality — needs ~40GB VRAM/RAM" },
+  { id: "phi3:mini", label: "Phi-3 Mini", size: "~2.2 GB", description: "Small, fast, runs on modest hardware" },
+];
+
+interface PullState {
+  status: "idle" | "pulling" | "done" | "error";
+  percent: number;
+  message: string;
+}
+
 function ANuTab({ addToast }: { addToast: (msg: string, type: Toast["type"]) => void }) {
   const [status, setStatus] = useState<AnuStatus>("checking");
   const [ollamaHost, setOllamaHost] = useState("http://localhost:11434");
@@ -615,6 +633,8 @@ function ANuTab({ addToast }: { addToast: (msg: string, type: Toast["type"]) => 
   const [models, setModels] = useState<string[]>([]);
   const [loadingModels, setLoadingModels] = useState(false);
   const [persona, setPersona] = useState("ANu is your in-house AI assistant — fast, private, and always available offline.");
+  const [pullStates, setPullStates] = useState<Record<string, PullState>>({});
+  const [customModelName, setCustomModelName] = useState("");
 
   useEffect(() => {
     fetch("/api/anu/status")
@@ -639,6 +659,91 @@ function ANuTab({ addToast }: { addToast: (msg: string, type: Toast["type"]) => 
       setLoadingModels(false);
     }
   }, [ollamaHost, addToast]);
+
+  const pullModel = useCallback(
+    async (modelId: string) => {
+      setPullStates((prev) => ({ ...prev, [modelId]: { status: "pulling", percent: 0, message: "Starting…" } }));
+      try {
+        const res = await fetch("/api/anu/pull", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: modelId }),
+        });
+
+        if (!res.ok || !res.body) {
+          const err = await res.json().catch(() => ({ error: "Pull request failed" }));
+          setPullStates((prev) => ({
+            ...prev,
+            [modelId]: { status: "error", percent: 0, message: err.error ?? "Pull request failed" },
+          }));
+          addToast(`Failed to pull ${modelId}`, "error");
+          return;
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            try {
+              const evt = JSON.parse(trimmed) as {
+                status?: string;
+                completed?: number;
+                total?: number;
+                error?: string;
+              };
+
+              if (evt.error) {
+                setPullStates((prev) => ({
+                  ...prev,
+                  [modelId]: { status: "error", percent: 0, message: evt.error ?? "Unknown error" },
+                }));
+                continue;
+              }
+
+              const percent =
+                evt.total && evt.completed ? Math.round((evt.completed / evt.total) * 100) : 0;
+
+              setPullStates((prev) => ({
+                ...prev,
+                [modelId]: {
+                  status: evt.status === "success" ? "done" : "pulling",
+                  percent: evt.status === "success" ? 100 : percent,
+                  message: evt.status ?? "",
+                },
+              }));
+            } catch {
+              // ignore malformed NDJSON line
+            }
+          }
+        }
+
+        setPullStates((prev) => {
+          const current = prev[modelId];
+          if (current?.status === "error") return prev;
+          return { ...prev, [modelId]: { status: "done", percent: 100, message: "Installed" } };
+        });
+        addToast(`${modelId} installed`, "success");
+        void loadModels();
+      } catch {
+        setPullStates((prev) => ({
+          ...prev,
+          [modelId]: { status: "error", percent: 0, message: "Network error during pull" },
+        }));
+        addToast(`Failed to pull ${modelId}`, "error");
+      }
+    },
+    [addToast, loadModels]
+  );
 
   const statusColor = status === "running" ? "#22c55e" : status === "checking" ? "#f59e0b" : "#94a3b8";
   const statusLabel = status === "running" ? "Running" : status === "checking" ? "Checking..." : "Not Running";
@@ -812,6 +917,143 @@ function ANuTab({ addToast }: { addToast: (msg: string, type: Toast["type"]) => 
             />
           )}
         </SettingRow>
+      </SectionCard>
+
+      <SectionCard title="Model Library" description="Browse and pull models directly — no terminal needed">
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {OLLAMA_LIBRARY.map((m) => {
+            const installed = models.includes(m.id);
+            const pull = pullStates[m.id] ?? { status: "idle" as const, percent: 0, message: "" };
+            return (
+              <div
+                key={m.id}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1.5px solid var(--border, #e2e8f0)",
+                  background: "var(--background, #f8fafc)",
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground, #0f172a)" }}>
+                      {m.label}
+                    </span>
+                    <span style={{ fontSize: 11, color: "var(--muted, #94a3b8)" }}>{m.size}</span>
+                    {installed && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "1px 8px",
+                          borderRadius: 999,
+                          background: "#d1fae5",
+                          color: "#065f46",
+                        }}
+                      >
+                        Installed
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--muted, #64748b)", marginTop: 2 }}>
+                    {m.description}
+                  </div>
+                  {pull.status === "pulling" && (
+                    <div style={{ marginTop: 6 }}>
+                      <div
+                        style={{
+                          height: 6,
+                          borderRadius: 999,
+                          background: "var(--border, #e2e8f0)",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${pull.percent}%`,
+                            background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
+                            transition: "width 0.2s",
+                          }}
+                        />
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--muted, #94a3b8)", marginTop: 3 }}>
+                        {pull.message} {pull.percent > 0 ? `(${pull.percent}%)` : ""}
+                      </div>
+                    </div>
+                  )}
+                  {pull.status === "error" && (
+                    <div style={{ fontSize: 11, color: "#dc2626", marginTop: 4 }}>{pull.message}</div>
+                  )}
+                </div>
+                <button
+                  onClick={() => void pullModel(m.id)}
+                  disabled={pull.status === "pulling" || installed}
+                  style={{
+                    padding: "0 16px",
+                    height: 32,
+                    borderRadius: 8,
+                    border: "none",
+                    background:
+                      installed || pull.status === "pulling"
+                        ? "var(--border, #e2e8f0)"
+                        : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                    color: installed || pull.status === "pulling" ? "var(--muted, #64748b)" : "#ffffff",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: installed || pull.status === "pulling" ? "default" : "pointer",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {installed ? "Installed" : pull.status === "pulling" ? "Pulling…" : "Pull"}
+                </button>
+              </div>
+            );
+          })}
+
+          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+            <input
+              value={customModelName}
+              onChange={(e) => setCustomModelName(e.target.value)}
+              placeholder="Pull any other model by name, e.g. gemma2:9b"
+              style={{
+                flex: 1,
+                height: 36,
+                padding: "0 12px",
+                borderRadius: 8,
+                border: "1.5px solid var(--border, #e2e8f0)",
+                background: "var(--background, #f8fafc)",
+                color: "var(--foreground, #0f172a)",
+                fontSize: 13,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            <button
+              onClick={() => {
+                if (customModelName.trim()) void pullModel(customModelName.trim());
+              }}
+              disabled={!customModelName.trim()}
+              style={{
+                padding: "0 16px",
+                height: 36,
+                borderRadius: 8,
+                border: "1.5px solid var(--border, #e2e8f0)",
+                background: "var(--background, #f8fafc)",
+                color: "var(--foreground, #0f172a)",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: customModelName.trim() ? "pointer" : "not-allowed",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Pull
+            </button>
+          </div>
+        </div>
       </SectionCard>
 
       <SectionCard title="ANu Persona" description="Customize how ANu introduces itself and its personality">

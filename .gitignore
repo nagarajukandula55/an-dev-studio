@@ -46,3 +46,12 @@ out/
 # Vitest
 coverage/
 html/
+
+# Runtime-stored secrets (AI provider API keys saved via the Settings UI).
+# The Settings UI tells users this file is gitignored — make that true.
+config/runtime.json
+**/config/runtime.json
+
+# Tauri desktop shell build artifacts
+**/src-tauri/target/
+**/src-tauri/gen/

@@ -3,6 +3,8 @@
 // Checks if Ollama is running and ANu model is installed
 // ============================================================================
 
+import { getOllamaConfig } from "@/lib/configStore";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -13,7 +15,8 @@ interface OllamaModel {
 }
 
 export async function GET(): Promise<Response> {
-    const host = process.env.OLLAMA_HOST ?? "http://localhost:11434";
+    const ollama = getOllamaConfig();
+    const host = ollama.host;
 
     try {
         const r = await fetch(`${host}/api/tags`, {
@@ -32,14 +35,12 @@ export async function GET(): Promise<Response> {
         }));
 
         const anuInstalled = models.some(m => m.name === "anu" || m.name.startsWith("anu:"));
-        const defaultModel = process.env.OLLAMA_DEFAULT_MODEL ?? "anu";
-        const enabled      = process.env.OLLAMA_ENABLED === "true";
 
         return Response.json({
             running:      true,
             anuInstalled,
-            enabled,
-            defaultModel,
+            enabled:      ollama.enabled,
+            defaultModel: ollama.defaultModel,
             models,
             ollamaHost:   host,
         });
@@ -47,7 +48,7 @@ export async function GET(): Promise<Response> {
         return Response.json({
             running:      false,
             anuInstalled: false,
-            enabled:      process.env.OLLAMA_ENABLED === "true",
+            enabled:      ollama.enabled,
             models:       [],
             ollamaHost:   host,
         });

@@ -15,7 +15,9 @@
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
     "clean": "rimraf .next",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "desktop": "tauri dev",
+    "desktop:build": "tauri build"
   },
   "dependencies": {
     "next": "16.2.9",
@@ -24,6 +26,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@tauri-apps/cli": "^2",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
