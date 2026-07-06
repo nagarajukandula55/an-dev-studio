@@ -1,35 +1,35 @@
 @import "tailwindcss";
 
 /* ============================================================================
-   AN Dev Studio — Design Tokens
-   Light theme is the default. Dark theme applies only when the <html> tag
-   has a `dark` class (toggled by the inline script in layout.tsx based on
-   the user's saved preference or OS setting) — NOT via a raw media query,
-   so the in-app theme toggle actually has an effect regardless of OS setting.
-   ============================================================================ */
+   AN Dev Studio — Global Theme
+   Tailwind CSS v4
+============================================================================ */
 
 :root {
+  /* Native */
   --background: #ffffff;
   --foreground: #0f172a;
 
+  /* Design System */
   --color-bg: #ffffff;
   --color-bg-subtle: #f8fafc;
   --color-bg-surface: #ffffff;
+
   --color-surface: #ffffff;
   --color-surface-2: #f1f5f9;
   --color-surface-3: #e2e8f0;
+
   --color-border: #e2e8f0;
   --color-border-subtle: #eef2f7;
+
   --color-text: #0f172a;
   --color-text-muted: #64748b;
+
   --color-primary: #6366f1;
   --color-accent: #6366f1;
   --color-accent-hover: #4f46e5;
 
-  /* Older token names used in a handful of components before the
-     --color-* scheme was standardized. Aliased here (rather than
-     rewritten everywhere) so the light/dark toggle reaches every
-     page uniformly without a larger refactor. */
+  /* Legacy aliases */
   --surface: var(--color-surface);
   --border: var(--color-border);
   --muted: var(--color-text-muted);
@@ -42,13 +42,17 @@
   --color-bg: #0b0d12;
   --color-bg-subtle: #11141b;
   --color-bg-surface: #12151d;
+
   --color-surface: #12151d;
   --color-surface-2: #1a1e28;
   --color-surface-3: #232838;
+
   --color-border: #232838;
   --color-border-subtle: #1a1e28;
+
   --color-text: #e2e8f0;
   --color-text-muted: #94a3b8;
+
   --color-primary: #818cf8;
   --color-accent: #818cf8;
   --color-accent-hover: #a5b4fc;
@@ -61,20 +65,52 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* Using Inter from layout.tsx */
+  --font-sans: var(--font-inter);
 }
 
-html,
-body {
+html {
   background: var(--color-bg);
   color: var(--color-text);
 }
 
 body {
+  margin: 0;
+  padding: 0;
+
+  background: var(--color-bg);
+  color: var(--color-text);
+
   font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
 }
