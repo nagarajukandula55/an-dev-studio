@@ -41,10 +41,13 @@ export default function RootLayout({
                         __html: `
                             (function() {
                                 try {
-                                    var theme = localStorage.getItem('studio-theme') || 'system';
-                                    var isDark = theme === 'dark' ||
-                                        (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-                                    if (isDark) document.documentElement.classList.add('dark');
+                                    // Default is light. Dark only applies if the user has
+                                    // explicitly chosen it via the theme toggle (persisted
+                                    // in localStorage). We do NOT fall back to OS preference,
+                                    // so the app looks the same regardless of system theme
+                                    // until the user opts into dark mode themselves.
+                                    var theme = localStorage.getItem('studio-theme') || 'light';
+                                    if (theme === 'dark') document.documentElement.classList.add('dark');
                                 } catch(e) {}
                             })();
                         `,

@@ -32,10 +32,15 @@ interface ProviderConfig {
   envVar: string;
   freeTierNote: string;
   getKeyUrl: string;
+  // Optional second field for providers that need more than an API key to
+  // form requests (e.g. Cloudflare Workers AI needs an account id alongside
+  // its token). Rendered as a small extra input under the main key field.
+  extraField?: { envVar: string; label: string; placeholder: string };
 }
 
 interface ProviderState {
   keyValue: string;
+  extraValue: string;
   savedInApp: boolean;
   fromEnv: boolean;
   saving: boolean;
@@ -114,6 +119,29 @@ const PROVIDERS: ProviderConfig[] = [
     envVar: "HF_TOKEN",
     freeTierNote: "Free tier: rate-limited, upgrade for more",
     getKeyUrl: "https://huggingface.co/settings/tokens",
+  },
+  {
+    id: "mistral",
+    emoji: "🌬️",
+    label: "Mistral AI",
+    description: "Mistral Small/Nemo/Large via La Plateforme",
+    envVar: "MISTRAL_API_KEY",
+    freeTierNote: "Free evaluation tier — rate-limited, no card required",
+    getKeyUrl: "https://console.mistral.ai/api-keys",
+  },
+  {
+    id: "cloudflare",
+    emoji: "☁️",
+    label: "Cloudflare Workers AI",
+    description: "Edge-hosted open models (Llama, GPT-OSS) via Cloudflare's global network",
+    envVar: "CLOUDFLARE_API_TOKEN",
+    freeTierNote: "Free tier: 10,000 Neurons/day, resets daily at 00:00 UTC",
+    getKeyUrl: "https://dash.cloudflare.com/profile/api-tokens",
+    extraField: {
+      envVar: "CLOUDFLARE_ACCOUNT_ID",
+      label: "Account ID",
+      placeholder: "Your Cloudflare account ID",
+    },
   },
 ];
 
@@ -1139,6 +1167,7 @@ function ProvidersTab({ addToast }: { addToast: (msg: string, type: Toast["type"
     for (const p of PROVIDERS) {
       initial[p.id] = {
         keyValue: "",
+        extraValue: "",
         savedInApp: false,
         fromEnv: false,
         saving: false,
@@ -1205,6 +1234,10 @@ function ProvidersTab({ addToast }: { addToast: (msg: string, type: Toast["type"
         addToast("Enter a key value first", "error");
         return;
       }
+      if (provider.extraField && !state.extraValue) {
+        addToast(`Enter ${provider.extraField.label} as well`, "error");
+        return;
+      }
       updateState(provider.id, { saving: true, saveSuccess: false });
       try {
         const res = await fetch("/api/config", {
@@ -1212,7 +1245,16 @@ function ProvidersTab({ addToast }: { addToast: (msg: string, type: Toast["type"
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ key: provider.envVar, value: state.keyValue }),
         });
-        if (res.ok) {
+        let extraOk = true;
+        if (res.ok && provider.extraField) {
+          const extraRes = await fetch("/api/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: provider.extraField.envVar, value: state.extraValue }),
+          });
+          extraOk = extraRes.ok;
+        }
+        if (res.ok && extraOk) {
           updateState(provider.id, {
             saving: false,
             saveSuccess: true,
@@ -1242,9 +1284,17 @@ function ProvidersTab({ addToast }: { addToast: (msg: string, type: Toast["type"
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ key: provider.envVar, value: "" }),
         });
+        if (provider.extraField) {
+          await fetch("/api/config", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ key: provider.extraField.envVar, value: "" }),
+          });
+        }
         if (res.ok) {
           updateState(provider.id, {
             keyValue: "",
+            extraValue: "",
             savedInApp: false,
             saveSuccess: false,
           });
@@ -1637,6 +1687,30 @@ function ProvidersTab({ addToast }: { addToast: (msg: string, type: Toast["type"
                     {state.saving ? "Saving..." : "Save"}
                   </button>
                 </div>
+
+                {provider.extraField && (
+                  <input
+                    type="text"
+                    placeholder={provider.extraField.placeholder}
+                    value={state.extraValue}
+                    disabled={state.fromEnv}
+                    onChange={(e) => updateState(provider.id, { extraValue: e.target.value })}
+                    style={{
+                      height: 36,
+                      padding: "0 12px",
+                      borderRadius: 8,
+                      border: "1.5px solid var(--border, #e2e8f0)",
+                      background: state.fromEnv
+                        ? "var(--background, #f8fafc)"
+                        : "var(--surface, #ffffff)",
+                      color: "var(--foreground, #0f172a)",
+                      fontSize: 13,
+                      outline: "none",
+                      opacity: state.fromEnv ? 0.6 : 1,
+                      cursor: state.fromEnv ? "not-allowed" : "text",
+                    }}
+                  />
+                )}
 
                 {/* Action row */}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>

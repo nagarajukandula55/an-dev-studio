@@ -10,6 +10,8 @@
 
 import type { AgentResult, MiniOrchestrator, OrchestrationPlan, ProjectContext } from "./types";
 import { completeJson } from "./llm";
+import { agentStatusRegistry } from "./AgentStatusRegistry";
+import { addActivity } from "@/lib/activityLog";
 
 import { uiMiniOrchestrator } from "../mini/ui";
 import { backendMiniOrchestrator } from "../mini/backend";
@@ -46,6 +48,30 @@ export function allMiniOrchestrators(): MiniOrchestrator[] {
     return [...DOMAIN_ORCHESTRATORS, ...Object.values(PLATFORM_ORCHESTRATORS)];
 }
 
+let globalRegistered = false;
+function ensureGlobalRegistered(): void {
+    if (globalRegistered) return;
+    agentStatusRegistry.register("global", "Global Orchestrator", "global");
+    globalRegistered = true;
+}
+
+/**
+ * Registers the entire org chart (global + every mini + every micro-agent)
+ * as "idle" up front, so the dashboard's agent-status view shows the full
+ * structure immediately on load — not just the agents that happen to have
+ * run at least once. Safe to call multiple times (each register() is a
+ * no-op for an id already known).
+ */
+export function registerAllAgents(): void {
+    ensureGlobalRegistered();
+    for (const orchestrator of allMiniOrchestrators()) {
+        agentStatusRegistry.register(orchestrator.id, orchestrator.label, "mini", "global");
+        for (const agent of orchestrator.microAgents) {
+            agentStatusRegistry.register(`${orchestrator.id}.${agent.id}`, agent.label, "micro", orchestrator.id);
+        }
+    }
+}
+
 interface PlanResponse {
     rationale: string;
     steps: { miniOrchestratorId: string; description: string; input: Record<string, unknown> }[];
@@ -60,7 +86,17 @@ export class GlobalOrchestrator {
      */
     private applicableOrchestrators(ctx: ProjectContext): MiniOrchestrator[] {
         const platformOrchestrator = PLATFORM_ORCHESTRATORS[ctx.platform];
-        return platformOrchestrator ? [...DOMAIN_ORCHESTRATORS, platformOrchestrator] : DOMAIN_ORCHESTRATORS;
+
+        // iOS/macOS builds cannot run or be tested on this machine (Xcode-only,
+        // macOS-only) — those platforms exist to propose source files for
+        // later use elsewhere, so skip Testing entirely for them rather than
+        // proposing tests that can never actually run here.
+        const skipTesting = ctx.platform === "ios" || ctx.platform === "macos";
+        const domains = skipTesting
+            ? DOMAIN_ORCHESTRATORS.filter((o) => o.id !== "testing")
+            : DOMAIN_ORCHESTRATORS;
+
+        return platformOrchestrator ? [...domains, platformOrchestrator] : domains;
     }
 
     async plan(ctx: ProjectContext): Promise<OrchestrationPlan> {
@@ -91,9 +127,15 @@ export class GlobalOrchestrator {
     }
 
     async run(ctx: ProjectContext): Promise<{ plan: OrchestrationPlan; results: AgentResult[] }> {
+        ensureGlobalRegistered();
+        agentStatusRegistry.update("global", { state: "planning", currentProjectId: ctx.projectId, lastMessage: ctx.prompt });
+        addActivity({ message: `Planning build: "${ctx.prompt}"`, agent: "global", status: "success", category: "orchestration" });
+
         const plan = await this.plan(ctx);
         const candidates = this.applicableOrchestrators(ctx);
         const results: AgentResult[] = [];
+
+        agentStatusRegistry.update("global", { state: "running", lastMessage: plan.rationale });
 
         for (const step of plan.steps) {
             const orchestrator = candidates.find((o) => o.id === step.miniOrchestratorId);
@@ -123,6 +165,15 @@ export class GlobalOrchestrator {
             const stepResults = await orchestrator.run(step.task, ctx);
             results.push(...stepResults);
         }
+
+        const anyFailed = results.some((r) => !r.success);
+        agentStatusRegistry.update("global", { state: anyFailed ? "error" : "success", lastMessage: `Build finished: ${results.length} task(s)` });
+        addActivity({
+            message: `Build finished: ${results.filter((r) => r.success).length}/${results.length} task(s) succeeded`,
+            agent: "global",
+            status: anyFailed ? "warning" : "success",
+            category: "orchestration",
+        });
 
         return { plan, results };
     }

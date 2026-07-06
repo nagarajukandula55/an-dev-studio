@@ -1,38 +1,24 @@
 // ============================================================================
-// Android Platform Mini-Orchestrator — SCAFFOLD ONLY, NOT YET FUNCTIONAL
+// Android Platform Mini-Orchestrator
 //
-// Real Android builds need the Android SDK/NDK, a JDK, and (for anything
-// beyond a bare Gradle build) Android Studio — none of which the
-// setup-desktop.ps1 script installs, and none of which are verified present
-// here. This orchestrator exists so the org-chart shape is complete and so
-// wiring in real Android micro-agents later is a matter of filling in
-// AndroidScaffoldAgent's system prompt/output convention, not restructuring
-// the framework. isAvailable() reports this honestly rather than pretending
-// it works.
+// Unlike iOS/macOS, Android CAN build on Windows once the Android SDK/adb
+// are installed — this orchestrator has real, per-file-type micro-agents
+// (Gradle config, manifest, activities/screens, layouts), matching the same
+// granularity as Web/Windows. The SDK itself is intentionally NOT installed
+// by default (setup-desktop.ps1 doesn't fetch it) — isAvailable() detects
+// whether it's present and reports exactly what's missing; the SDK gets
+// installed on demand only when an Android build is actually attempted,
+// rather than bloating every fresh install with tooling most projects won't
+// use immediately.
 // ============================================================================
 
 import { spawn } from "child_process";
-import { BaseFileAgent } from "../../core/BaseFileAgent";
 import { BaseMiniOrchestrator } from "../../core/BaseMiniOrchestrator";
-import type { AgentTask, MicroAgent } from "../../core/types";
-
-class AndroidScaffoldAgent extends BaseFileAgent {
-    readonly id = "android-scaffold";
-    readonly label = "Android Scaffold Agent";
-    readonly description = "Writes Android project scaffolding (Gradle config, manifest). Requires the Android SDK to actually build.";
-    readonly agentPath = "platform-android.android-scaffold";
-
-    protected systemPrompt(): string {
-        return (
-            "You are a senior Android platform engineer. Write a single, complete Android project file " +
-            "(build.gradle.kts, AndroidManifest.xml, or a Kotlin source file). Output only the file's contents."
-        );
-    }
-
-    protected resolveRelativePath(task: AgentTask): string {
-        return (task.input.fileName as string | undefined) ?? "app/build.gradle.kts";
-    }
-}
+import type { MicroAgent } from "../../core/types";
+import { GradleConfigAgent } from "./GradleConfigAgent";
+import { ManifestAgent } from "./ManifestAgent";
+import { ActivityAgent } from "./ActivityAgent";
+import { LayoutXmlAgent } from "./LayoutXmlAgent";
 
 function commandExists(cmd: string): Promise<boolean> {
     return new Promise((resolve) => {
@@ -45,8 +31,13 @@ function commandExists(cmd: string): Promise<boolean> {
 class AndroidPlatformMiniOrchestrator extends BaseMiniOrchestrator {
     readonly id = "platform-android";
     readonly label = "Android Platform";
-    readonly description = "Native Android app scaffolding. Building actually requires the Android SDK/NDK (Android Studio) installed separately — not part of the automated setup script yet.";
-    readonly microAgents: MicroAgent[] = [new AndroidScaffoldAgent()];
+    readonly description = "Native Android app scaffolding — Gradle config, manifest, activities/screens, and layouts.";
+    readonly microAgents: MicroAgent[] = [
+        new GradleConfigAgent(),
+        new ManifestAgent(),
+        new ActivityAgent(),
+        new LayoutXmlAgent(),
+    ];
 
     async isAvailable(): Promise<{ available: boolean; reason?: string }> {
         const hasAdb = await commandExists("adb");
@@ -54,9 +45,9 @@ class AndroidPlatformMiniOrchestrator extends BaseMiniOrchestrator {
             return {
                 available: false,
                 reason:
-                    "Android SDK not detected (no ANDROID_HOME / adb on PATH). Install Android Studio and its " +
-                    "SDK, then set ANDROID_HOME, before this orchestrator can actually build anything. It can " +
-                    "still propose source files for review even without a working build.",
+                    "Android SDK not detected (no ANDROID_HOME / adb on PATH). Install the Android SDK " +
+                    "command-line tools (or Android Studio) and set ANDROID_HOME, then this orchestrator can " +
+                    "actually build/run — it can still propose Gradle/manifest/source files for review without it.",
             };
         }
         return { available: true };

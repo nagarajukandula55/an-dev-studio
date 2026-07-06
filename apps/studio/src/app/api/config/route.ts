@@ -14,6 +14,7 @@ import {
     readRuntimeStore as readStore,
     writeRuntimeStore as writeStore,
     isRuntimeConfigPersistent,
+    PROVIDER_ENV_VAR,
 } from "@/lib/configStore";
 
 type ProviderSource = "env" | "config" | "none";
@@ -55,16 +56,11 @@ function getKey(key: string, store: Record<string, string>): { value: string | u
 export async function GET(): Promise<Response> {
     const store = readStore();
 
-    const providerMap: Record<string, string> = {
-        groq:        "GROQ_API_KEY",
-        cerebras:    "CEREBRAS_API_KEY",
-        openrouter:  "OPENROUTER_API_KEY",
-        gemini:      "GOOGLE_AI_API_KEY",
-        huggingface: "HF_TOKEN",
-    };
-
+    // Single source of truth shared with ProviderManager/getProviderKey(),
+    // so newly added providers (e.g. Mistral, Cloudflare) show up here
+    // automatically without needing a second hardcoded copy of the mapping.
     const providers: Record<string, ProviderInfo> = {};
-    for (const [name, envVar] of Object.entries(providerMap)) {
+    for (const [name, envVar] of Object.entries(PROVIDER_ENV_VAR)) {
         const { value, source } = getKey(envVar, store);
         providers[name] = {
             configured: !!value,

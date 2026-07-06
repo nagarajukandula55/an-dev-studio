@@ -1,5 +1,5 @@
-# ============================================================================
-# AN Dev Studio — automated desktop app setup (Windows)
+﻿# ============================================================================
+# AN Dev Studio - automated desktop app setup (Windows)
 #
 # Installs everything needed to run AN Dev Studio as a native desktop app on
 # this machine (Node.js, Rust, the Tauri CLI, Ollama), installs the project's
@@ -9,7 +9,7 @@
 # Usage: open PowerShell in this folder (apps/studio) and run:
 #   .\setup-desktop.ps1
 #
-# Safe to re-run — every step checks whether its tool is already installed
+# Safe to re-run - every step checks whether its tool is already installed
 # and skips it if so.
 # ============================================================================
 
@@ -33,7 +33,7 @@ function Test-WingetAvailable {
     }
 }
 
-# ── 1. Node.js ───────────────────────────────────────────────────────────────
+# -- 1. Node.js --------------------------------------------------------------
 
 Write-Step "Checking Node.js"
 if (Test-Command "node") {
@@ -47,7 +47,7 @@ if (Test-Command "node") {
     Write-Host "Re-run this script in a new terminal if the next steps fail to find 'node' or 'npm'." -ForegroundColor Yellow
 }
 
-# ── 2. Rust + Cargo (required by Tauri) ─────────────────────────────────────
+# -- 2. Rust + Cargo (required by Tauri) -------------------------------------
 
 Write-Step "Checking Rust toolchain"
 if (Test-Command "cargo") {
@@ -64,7 +64,7 @@ if (Test-Command "cargo") {
     Write-Host "Rust installed. New terminals will pick up PATH changes automatically." -ForegroundColor Yellow
 }
 
-# ── 3. Windows build prerequisites for Tauri ────────────────────────────────
+# -- 3. Windows build prerequisites for Tauri --------------------------------
 # Tauri on Windows needs the MSVC C++ Build Tools and WebView2 Runtime.
 # WebView2 ships pre-installed on Windows 10 (2004+) and Windows 11.
 
@@ -79,13 +79,13 @@ if ($hasBuildTools) {
     Write-Host "C++ Build Tools already installed."
 } else {
     Test-WingetAvailable
-    Write-Host "Installing Visual Studio Build Tools (C++ workload) via winget — this step is large and may take a while..."
+    Write-Host "Installing Visual Studio Build Tools (C++ workload) via winget - this step is large and may take a while..."
     winget install --id Microsoft.VisualStudio.2022.BuildTools -e --accept-source-agreements --accept-package-agreements --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools"
 }
 
-# ── 4. Ollama (optional, for the local ANu model) ───────────────────────────
+# -- 4. Ollama (optional, for the local ANu model) ---------------------------
 
-Write-Step "Checking Ollama (for the local ANu model — optional but recommended)"
+Write-Step "Checking Ollama (for the local ANu model - optional but recommended)"
 if (Test-Command "ollama") {
     Write-Host "Ollama already installed: $(ollama --version)"
 } else {
@@ -94,11 +94,11 @@ if (Test-Command "ollama") {
     winget install --id Ollama.Ollama -e --accept-source-agreements --accept-package-agreements
 }
 
-# ── 4b. Docker Desktop (sandboxes commands the Builder agent proposes) ─────
+# -- 4b. Docker Desktop (sandboxes commands the Builder agent proposes) ------
 # The Builder feature (src/agents/) runs approved shell commands inside a
 # Docker container scoped to the project folder rather than directly on this
 # machine. Without Docker it still works, but commands fall back to running
-# directly on the host — install this if you want the isolation.
+# directly on the host - install this if you want the isolation.
 
 Write-Step "Checking Docker Desktop (sandboxes commands the Builder agent runs)"
 if (Test-Command "docker") {
@@ -111,21 +111,21 @@ if (Test-Command "docker") {
     Write-Host "(it may also require a Windows restart to enable WSL2/virtualization features)." -ForegroundColor Yellow
 }
 
-# ── 5. Project dependencies ─────────────────────────────────────────────────
+# -- 5. Project dependencies --------------------------------------------------
 
 Write-Step "Installing project dependencies (npm install)"
 npm install
 
-Write-Step "Installing Tauri CLI prerequisites are covered by npm install (@tauri-apps/cli)"
+Write-Step "Tauri CLI is installed as part of npm install (@tauri-apps/cli)"
 
-# ── 6. Production build of the Next.js app ──────────────────────────────────
+# -- 6. Production build of the Next.js app ----------------------------------
 
 Write-Step "Building the app (npm run build)"
 npm run build
 
-# ── 7. Build the desktop installer ──────────────────────────────────────────
+# -- 7. Build the desktop installer -------------------------------------------
 
-Write-Step "Building the desktop app installer (this compiles the Rust shell — first time takes several minutes)"
+Write-Step "Building the desktop app installer (this compiles the Rust shell - first time takes several minutes)"
 npm run desktop:build
 
 Write-Step "Done!"

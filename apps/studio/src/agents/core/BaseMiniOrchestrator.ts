@@ -9,6 +9,8 @@
 
 import type { AgentResult, AgentTask, MicroAgent, MiniOrchestrator, ProjectContext } from "./types";
 import { completeJson } from "./llm";
+import { agentStatusRegistry } from "./AgentStatusRegistry";
+import { addActivity } from "@/lib/activityLog";
 
 interface MicroPlanResponse {
     tasks: { microAgentId: string; description: string; input: Record<string, unknown> }[];
@@ -25,6 +27,18 @@ export abstract class BaseMiniOrchestrator implements MiniOrchestrator {
     abstract readonly description: string;
     abstract readonly microAgents: MicroAgent[];
 
+    private registered = false;
+
+    /** Registers this mini-orchestrator and all its micro-agents with the live status registry, once. */
+    private ensureRegistered(): void {
+        if (this.registered) return;
+        agentStatusRegistry.register(this.id, this.label, "mini", "global");
+        for (const agent of this.microAgents) {
+            agentStatusRegistry.register(`${this.id}.${agent.id}`, agent.label, "micro", this.id);
+        }
+        this.registered = true;
+    }
+
     async isAvailable(): Promise<{ available: boolean; reason?: string }> {
         return { available: true };
     }
@@ -35,8 +49,12 @@ export abstract class BaseMiniOrchestrator implements MiniOrchestrator {
     }
 
     async run(task: AgentTask, ctx: ProjectContext): Promise<AgentResult[]> {
+        this.ensureRegistered();
+        agentStatusRegistry.update(this.id, { state: "planning", currentProjectId: ctx.projectId, lastMessage: task.description });
+
         const availability = await this.isAvailable();
         if (!availability.available) {
+            agentStatusRegistry.update(this.id, { state: "idle", lastMessage: `Unavailable: ${availability.reason ?? "unknown"}` });
             return [{
                 taskId: task.id,
                 approvalRequestIds: [],
@@ -46,10 +64,27 @@ export abstract class BaseMiniOrchestrator implements MiniOrchestrator {
             }];
         }
 
-        const microTasks = await this.planInternal(task, ctx);
+        let microTasks: ResolvedMicroTask[];
+        try {
+            microTasks = await this.planInternal(task, ctx);
+        } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            agentStatusRegistry.update(this.id, { state: "error", lastMessage: message });
+            addActivity({ message: `${this.label} failed to plan: ${message}`, agent: this.id, status: "danger", category: "orchestration" });
+            return [{
+                taskId: task.id,
+                approvalRequestIds: [],
+                summary: `${this.label} failed to plan sub-tasks.`,
+                success: false,
+                error: message,
+            }];
+        }
+
+        agentStatusRegistry.update(this.id, { state: "running" });
         const results: AgentResult[] = [];
 
         for (const { agentId, task: microTask } of microTasks) {
+            const fullAgentId = `${this.id}.${agentId}`;
             const agent = this.microAgents.find((a) => a.id === agentId);
             if (!agent) {
                 results.push({
@@ -61,18 +96,36 @@ export abstract class BaseMiniOrchestrator implements MiniOrchestrator {
                 });
                 continue;
             }
+            agentStatusRegistry.update(fullAgentId, { state: "running", currentProjectId: ctx.projectId, lastMessage: microTask.description });
             try {
-                results.push(await agent.run(microTask, ctx));
+                const result = await agent.run(microTask, ctx);
+                results.push(result);
+                agentStatusRegistry.update(fullAgentId, {
+                    state: result.success ? "success" : "error",
+                    lastMessage: result.summary,
+                });
+                addActivity({
+                    message: result.summary,
+                    agent: fullAgentId,
+                    status: result.success ? "success" : "warning",
+                    category: this.id,
+                });
             } catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                agentStatusRegistry.update(fullAgentId, { state: "error", lastMessage: message });
+                addActivity({ message: `${agent.label} failed: ${message}`, agent: fullAgentId, status: "danger", category: this.id });
                 results.push({
                     taskId: microTask.id,
                     approvalRequestIds: [],
                     summary: `${agent.label} failed.`,
                     success: false,
-                    error: err instanceof Error ? err.message : String(err),
+                    error: message,
                 });
             }
         }
+
+        const anyFailed = results.some((r) => !r.success);
+        agentStatusRegistry.update(this.id, { state: anyFailed ? "error" : "success", lastMessage: `${results.length} task(s) completed` });
 
         return results;
     }

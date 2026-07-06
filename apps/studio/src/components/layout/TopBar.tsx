@@ -136,77 +136,190 @@ function UserAvatar() {
 // NotificationBell
 // ---------------------------------------------------------------------------
 
-interface NotificationBellProps {
-  count?: number;
+interface NotificationEntry {
+  id: string;
+  message: string;
+  time: string;
+  agent: string;
+  status: "success" | "warning" | "danger";
+  category: string;
 }
 
-function NotificationBell({ count = 0 }: NotificationBellProps) {
-  return (
-    <button
-      aria-label={
-        count > 0 ? `${count} unread notifications` : "No new notifications"
-      }
-      title={
-        count > 0 ? `${count} unread notifications` : "No new notifications"
-      }
-      style={{
-        width: 36,
-        height: 36,
-        position: "relative",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        borderRadius: 8,
-        border: "1px solid var(--border, #e2e8f0)",
-        background: "transparent",
-        cursor: "pointer",
-        color: "var(--foreground, #1a202c)",
-        flexShrink: 0,
-      }}
-    >
-      {/* Bell icon */}
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="18"
-        height="18"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-      </svg>
+const LAST_SEEN_KEY = "studio-notifications-last-seen";
 
-      {/* Badge */}
-      {count > 0 && (
-        <span
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchNotifications = React.useCallback((since: string | null) => {
+    const url = since ? `/api/notifications?since=${encodeURIComponent(since)}` : "/api/notifications";
+    fetch(url)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { notifications: NotificationEntry[]; unreadCount: number } | null) => {
+        if (!data) return;
+        setNotifications(data.notifications);
+        setUnreadCount(data.unreadCount);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const lastSeen = typeof window !== "undefined" ? localStorage.getItem(LAST_SEEN_KEY) : null;
+    fetchNotifications(lastSeen);
+    const interval = setInterval(() => {
+      const seen = typeof window !== "undefined" ? localStorage.getItem(LAST_SEEN_KEY) : null;
+      fetchNotifications(seen);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  const handleToggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      // Mark everything currently loaded as read once the dropdown is opened.
+      localStorage.setItem(LAST_SEEN_KEY, new Date().toISOString());
+      setUnreadCount(0);
+    }
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={handleToggle}
+        aria-label={
+          unreadCount > 0 ? `${unreadCount} unread notifications` : "No new notifications"
+        }
+        title={
+          unreadCount > 0 ? `${unreadCount} unread notifications` : "No new notifications"
+        }
+        style={{
+          width: 36,
+          height: 36,
+          position: "relative",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          borderRadius: 8,
+          border: "1px solid var(--border, #e2e8f0)",
+          background: open ? "var(--color-surface-2, #f1f5f9)" : "transparent",
+          cursor: "pointer",
+          color: "var(--foreground, #1a202c)",
+          flexShrink: 0,
+        }}
+      >
+        {/* Bell icon */}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
           aria-hidden="true"
-          style={{
-            position: "absolute",
-            top: 4,
-            right: 4,
-            minWidth: 16,
-            height: 16,
-            borderRadius: "50%",
-            background: "#ef4444",
-            color: "#ffffff",
-            fontSize: 10,
-            fontWeight: 700,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            lineHeight: 1,
-            padding: "0 3px",
-          }}
         >
-          {count > 99 ? "99+" : count}
-        </span>
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </svg>
+
+        {/* Badge */}
+        {unreadCount > 0 && (
+          <span
+            aria-hidden="true"
+            style={{
+              position: "absolute",
+              top: 4,
+              right: 4,
+              minWidth: 16,
+              height: 16,
+              borderRadius: "50%",
+              background: "#ef4444",
+              color: "#ffffff",
+              fontSize: 10,
+              fontWeight: 700,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              lineHeight: 1,
+              padding: "0 3px",
+            }}
+          >
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <>
+          {/* Click-away layer */}
+          <div
+            onClick={() => setOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 60 }}
+          />
+          <div
+            role="menu"
+            style={{
+              position: "absolute",
+              top: 44,
+              right: 0,
+              width: 340,
+              maxHeight: 420,
+              overflowY: "auto",
+              background: "var(--color-surface, #ffffff)",
+              border: "1px solid var(--color-border, #e2e8f0)",
+              borderRadius: 12,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+              zIndex: 61,
+            }}
+          >
+            <div style={{ padding: "10px 14px", borderBottom: "1px solid var(--color-border, #e2e8f0)", fontSize: 13, fontWeight: 700 }}>
+              Activity
+            </div>
+            {notifications.length === 0 ? (
+              <div style={{ padding: "24px 14px", fontSize: 13, color: "var(--muted, #64748b)", textAlign: "center" }}>
+                No activity yet — build something to see agents show up here.
+              </div>
+            ) : (
+              notifications.map((n) => (
+                <div
+                  key={n.id}
+                  style={{
+                    padding: "10px 14px",
+                    borderBottom: "1px solid var(--color-border-subtle, #eef2f7)",
+                    display: "flex",
+                    gap: 8,
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: "50%",
+                      marginTop: 5,
+                      flexShrink: 0,
+                      background:
+                        n.status === "success" ? "#22c55e" : n.status === "warning" ? "#f59e0b" : "#ef4444",
+                    }}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 12.5, lineHeight: 1.4 }}>{n.message}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted, #64748b)", marginTop: 2 }}>
+                      {n.agent} · {new Date(n.time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -412,7 +525,7 @@ export function TopBar({ title, sidebarOpen = true, onMenuClick }: TopBarProps) 
       >
         <ANuStatusPill />
         <UserAvatar />
-        <NotificationBell count={3} />
+        <NotificationBell />
         <ThemeToggle />
       </div>
     </header>

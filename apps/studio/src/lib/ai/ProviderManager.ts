@@ -1,7 +1,9 @@
 // ============================================================================
 // AN Dev Studio — ProviderManager
-// Fallback chain: ANu → Groq → Cerebras → OpenRouter → Gemini → HuggingFace
-// ANu is the in-house model (Ollama). All others are external APIs.
+// Fallback chain: ANu → Groq → Cerebras → Mistral → Cloudflare → OpenRouter →
+//                  Gemini → HuggingFace
+// ANu is the in-house model (Ollama). All others are external APIs, ordered
+// roughly by generosity/reliability of their free tier as of mid-2026.
 // ============================================================================
 
 import type { ChatMessage, ChatStreamCallback, IProvider, ProviderStatus, StreamChunk } from "./types";
@@ -9,9 +11,11 @@ import { getAgentPrompt } from "./agentPrompts";
 import {
     AnuProvider,
     CerebrasProvider,
+    CloudflareProvider,
     GeminiProvider,
     GroqProvider,
     HuggingFaceProvider,
+    MistralProvider,
     OpenRouterProvider,
 } from "./providers";
 
@@ -33,6 +37,8 @@ export class ProviderManager {
         new AnuProvider(),
         new GroqProvider(),
         new CerebrasProvider(),
+        new MistralProvider(),
+        new CloudflareProvider(),
         new OpenRouterProvider(),
         new GeminiProvider(),
         new HuggingFaceProvider(),

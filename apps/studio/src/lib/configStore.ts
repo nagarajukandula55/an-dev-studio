@@ -86,6 +86,9 @@ export const ALLOWED_RUNTIME_KEYS = new Set([
   "OPENROUTER_API_KEY",
   "GOOGLE_AI_API_KEY",
   "HF_TOKEN",
+  "MISTRAL_API_KEY",
+  "CLOUDFLARE_API_TOKEN",
+  "CLOUDFLARE_ACCOUNT_ID",
   "OLLAMA_ENABLED",
   "OLLAMA_HOST",
   "OLLAMA_DEFAULT_MODEL",
@@ -93,6 +96,13 @@ export const ALLOWED_RUNTIME_KEYS = new Set([
   "VERCEL_ORG_ID",
   "VERCEL_PROJECT_ID",
 ]);
+
+// Cloudflare Workers AI needs both a token AND an account id to form its base
+// URL — read separately from getProviderKey() since that helper assumes a
+// single key per provider.
+export function getCloudflareAccountId(): string | undefined {
+  return getRuntimeConfig()["CLOUDFLARE_ACCOUNT_ID"];
+}
 
 export function readRuntimeStore(): Record<string, string> {
   return readConfigFile();
@@ -115,4 +125,6 @@ export const PROVIDER_ENV_VAR: { [provider: string]: string } = {
   openrouter: "OPENROUTER_API_KEY",
   gemini: "GOOGLE_AI_API_KEY",
   huggingface: "HF_TOKEN",
+  mistral: "MISTRAL_API_KEY",
+  cloudflare: "CLOUDFLARE_API_TOKEN",
 };

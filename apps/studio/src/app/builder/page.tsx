@@ -15,6 +15,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { AgentOrgChart } from "@/components/agents/AgentOrgChart";
 
 type Platform = "web" | "windows" | "android" | "ios" | "macos";
 
@@ -148,6 +149,8 @@ export default function BuilderPage() {
                     nothing runs automatically.
                 </p>
             </div>
+
+            <AgentOrgChart />
 
             <Card style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

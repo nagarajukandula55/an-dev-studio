@@ -1,40 +1,26 @@
 // ============================================================================
-// iOS Platform Mini-Orchestrator — SCAFFOLD ONLY, NOT YET FUNCTIONAL
+// iOS Platform Mini-Orchestrator — proposes files only, cannot build here
 //
 // Real iOS builds require Xcode, which only runs on macOS — this cannot
 // function on a Windows laptop at all, full stop, regardless of what gets
-// installed. This orchestrator exists so the org-chart shape is complete;
-// isAvailable() always reports unavailable on non-macOS hosts rather than
-// pretending otherwise.
+// installed. isAvailable() always reports unavailable on non-macOS hosts.
+// Per explicit instruction, this orchestrator still has multiple focused
+// micro-agents (not one catch-all) so files can be prepared now and handed
+// off to a real Mac/Xcode environment later; Testing is skipped entirely
+// for this platform at the GlobalOrchestrator level, since nothing here can
+// actually be run/tested on this machine either.
 // ============================================================================
 
-import { BaseFileAgent } from "../../core/BaseFileAgent";
 import { BaseMiniOrchestrator } from "../../core/BaseMiniOrchestrator";
-import type { AgentTask, MicroAgent } from "../../core/types";
-
-class IosScaffoldAgent extends BaseFileAgent {
-    readonly id = "ios-scaffold";
-    readonly label = "iOS Scaffold Agent";
-    readonly description = "Writes iOS project scaffolding (Swift source, Xcode project files). Requires Xcode on macOS to actually build.";
-    readonly agentPath = "platform-ios.ios-scaffold";
-
-    protected systemPrompt(): string {
-        return (
-            "You are a senior iOS platform engineer. Write a single, complete Swift/SwiftUI source file or " +
-            "Xcode project config fragment. Output only the file's contents."
-        );
-    }
-
-    protected resolveRelativePath(task: AgentTask): string {
-        return (task.input.fileName as string | undefined) ?? "Sources/App.swift";
-    }
-}
+import type { MicroAgent } from "../../core/types";
+import { SwiftUIScreenAgent } from "./SwiftUIScreenAgent";
+import { InfoPlistAgent } from "./InfoPlistAgent";
 
 class IosPlatformMiniOrchestrator extends BaseMiniOrchestrator {
     readonly id = "platform-ios";
     readonly label = "iOS Platform";
-    readonly description = "Native iOS app scaffolding. Building requires Xcode on macOS — cannot run on Windows at all.";
-    readonly microAgents: MicroAgent[] = [new IosScaffoldAgent()];
+    readonly description = "Native iOS app scaffolding (SwiftUI screens, Info.plist). Building requires Xcode on macOS — cannot run on Windows at all.";
+    readonly microAgents: MicroAgent[] = [new SwiftUIScreenAgent(), new InfoPlistAgent()];
 
     async isAvailable(): Promise<{ available: boolean; reason?: string }> {
         if (process.platform !== "darwin") {

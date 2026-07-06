@@ -4,19 +4,22 @@
   "version": "1.0.0",
   "identifier": "com.angroups.andevstudio",
   "build": {
-    "frontendDist": "http://localhost:3210",
-    "devUrl": "http://localhost:3210"
+    "frontendDist": "launcher"
   },
   "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
-        "title": "AN Dev Studio",
-        "width": 1440,
-        "height": 900,
-        "minWidth": 960,
-        "minHeight": 640,
+        "label": "launcher",
+        "title": "AN Dev Studio — Setup",
+        "url": "index.html",
+        "width": 720,
+        "height": 640,
+        "minWidth": 600,
+        "minHeight": 520,
         "resizable": true,
-        "fullscreen": false
+        "fullscreen": false,
+        "center": true
       }
     ],
     "security": {
@@ -26,6 +29,7 @@
   "bundle": {
     "active": true,
     "targets": ["nsis", "msi"],
+    "resources": ["launcher/*"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -2,80 +2,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { addActivity, getActivities } from "@/lib/activityLog";
 
-const ACTIVITY_FILE = path.join(process.cwd(), "config", "activity.json");
-const MAX_ENTRIES = 100;
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 50;
-
-export interface ActivityEntry {
-  id: string;
-  message: string;
-  time: string;
-  agent: string;
-  status: "success" | "warning" | "danger";
-  category: string;
-}
-
-function readActivities(): ActivityEntry[] {
-  try {
-    const raw = fs.readFileSync(ACTIVITY_FILE, "utf-8");
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed as ActivityEntry[];
-    }
-    return [];
-  } catch (err: unknown) {
-    if (
-      typeof err === "object" &&
-      err !== null &&
-      "code" in err &&
-      (err as NodeJS.ErrnoException).code === "ENOENT"
-    ) {
-      return [];
-    }
-    throw err;
-  }
-}
-
-function writeActivities(activities: ActivityEntry[]): void {
-  const dir = path.dirname(ACTIVITY_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  fs.writeFileSync(ACTIVITY_FILE, JSON.stringify(activities, null, 2), "utf-8");
-}
-
-function generateId(): string {
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
-
-export function addActivity(
-  entry: Omit<ActivityEntry, "id" | "time">
-): ActivityEntry {
-  const activities = readActivities();
-
-  const newEntry: ActivityEntry = {
-    id: generateId(),
-    message: entry.message,
-    time: new Date().toISOString(),
-    agent: entry.agent,
-    status: entry.status,
-    category: entry.category,
-  };
-
-  activities.unshift(newEntry);
-
-  if (activities.length > MAX_ENTRIES) {
-    activities.splice(MAX_ENTRIES);
-  }
-
-  writeActivities(activities);
-
-  return newEntry;
-}
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -90,13 +20,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    const activities = readActivities();
-    const sliced = activities.slice(0, limit);
+    const { activities, total } = getActivities(limit);
 
-    return NextResponse.json({
-      activities: sliced,
-      total: activities.length,
-    });
+    return NextResponse.json({ activities, total });
   } catch (err: unknown) {
     console.error("GET /api/activity error:", err);
     return NextResponse.json(
