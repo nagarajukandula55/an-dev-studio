@@ -55,3 +55,8 @@ config/runtime.json
 # Tauri desktop shell build artifacts
 **/src-tauri/target/
 **/src-tauri/gen/
+
+# SQLite dev database (approvals/projects/activity/agent-runs/verify-iterations — Phase 4 persistence)
+**/data/studio.db
+**/data/studio.db-wal
+**/data/studio.db-shm

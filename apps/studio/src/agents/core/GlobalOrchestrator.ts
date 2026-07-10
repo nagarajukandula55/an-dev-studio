@@ -28,6 +28,7 @@ import { implementerAgent } from "../core-team/ImplementerAgent";
 import { reviewerAgent } from "../core-team/ReviewerAgent";
 import { deployerAgent } from "../core-team/DeployerAgent";
 import type { BuildPlan } from "../core-team/types";
+import { insertAgentRun } from "@/lib/db/agentRunsRepo";
 
 const CORE_TEAM_AGENTS = [
     { id: "planner", label: "Planner" },
@@ -147,6 +148,14 @@ export class GlobalOrchestrator {
             agent: "global",
             status: anyFailed ? "warning" : "success",
             category: "orchestration",
+        });
+        insertAgentRun({
+            id: `run-${ctx.projectId}-${Date.now()}`,
+            projectId: ctx.projectId,
+            rationale: plan.rationale,
+            results,
+            success: !anyFailed,
+            createdAt: Date.now(),
         });
 
         return { plan: { ...plan, projectId: ctx.projectId }, results };

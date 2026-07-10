@@ -22,6 +22,7 @@ import { buildProjectManifest } from "../manifest/ProjectManifest";
 import { fixerAgent } from "../core-team/FixerAgent";
 import { proposeCommand } from "../core-team/propose";
 import { autoApproveStore } from "./AutoApproveStore";
+import { insertVerifyIteration, listVerifyIterations } from "@/lib/db/verifyIterationsRepo";
 
 const MAX_ITERATIONS = 5;
 
@@ -82,10 +83,29 @@ function detectCommands(ctx: ProjectContext): DetectedCommand[] {
 }
 
 class BuildVerifierImpl {
+    // Fast path within this process's lifetime; the durable record is the
+    // verify_iterations table (see the `finish` persistence below), so a
+    // restart still has iteration history even though the exact summary
+    // message/flags of the last in-progress run are process-local.
     private reports = new Map<string, VerifyReport>();
 
     getLastReport(projectId: string): VerifyReport | undefined {
-        return this.reports.get(projectId);
+        const cached = this.reports.get(projectId);
+        if (cached) return cached;
+
+        const iterations = listVerifyIterations(projectId);
+        if (iterations.length === 0) return undefined;
+
+        const last = iterations[iterations.length - 1];
+        const lastIterationClean = last.commands.every((c) => c.status === "applied") && !last.fixRequestIds?.length;
+        return {
+            projectId,
+            iterations,
+            success: lastIterationClean,
+            capped: iterations.length >= MAX_ITERATIONS && !lastIterationClean,
+            awaitingApproval: last.commands.some((c) => c.status === "pending"),
+            message: "Restored from persisted history (server restarted since this project last ran verify).",
+        };
     }
 
     async run(ctx: ProjectContext): Promise<VerifyReport> {
@@ -110,7 +130,7 @@ class BuildVerifierImpl {
             }));
 
             if (!autoApprove) {
-                iterations.push({ iteration, commands: commandRecords });
+                this.recordIteration(ctx.projectId, iterations, { iteration, commands: commandRecords });
                 return this.finish(ctx.projectId, iterations, {
                     success: false,
                     capped: false,
@@ -130,7 +150,7 @@ class BuildVerifierImpl {
             }
 
             if (!errorOutput) {
-                iterations.push({ iteration, commands: commandRecords });
+                this.recordIteration(ctx.projectId, iterations, { iteration, commands: commandRecords });
                 return this.finish(ctx.projectId, iterations, {
                     success: true,
                     capped: false,
@@ -148,7 +168,12 @@ class BuildVerifierImpl {
                 }
             }
 
-            iterations.push({ iteration, commands: commandRecords, fixerDiagnosis: fix.diagnosis, fixRequestIds: fix.requestIds });
+            this.recordIteration(ctx.projectId, iterations, {
+                iteration,
+                commands: commandRecords,
+                fixerDiagnosis: fix.diagnosis,
+                fixRequestIds: fix.requestIds,
+            });
 
             if (fix.requestIds.length === 0) {
                 return this.finish(ctx.projectId, iterations, {
@@ -176,6 +201,12 @@ class BuildVerifierImpl {
         const report: VerifyReport = { projectId, iterations, ...rest };
         this.reports.set(projectId, report);
         return report;
+    }
+
+    /** Records one iteration both in the returned report and durably in SQLite. */
+    private recordIteration(projectId: string, iterations: VerifyIterationRecord[], record: VerifyIterationRecord): void {
+        iterations.push(record);
+        insertVerifyIteration(projectId, record);
     }
 }
 
