@@ -9,9 +9,10 @@
 // to propose next and (when auto-approve is on for the project) calls
 // approveAndApply() on its own proposals.
 //
-// Capped at MAX_ITERATIONS to avoid an infinite fix-loop on an unfixable
-// failure; on cap, returns a clear failure report rather than looping
-// forever.
+// Capped per the project's plan (lib/licensing/plans.ts — Free: 2 iterations,
+// no auto-approve; Pro: 5 iterations, auto-approve allowed) to avoid an
+// infinite fix-loop on an unfixable failure; on cap, returns a clear failure
+// report rather than looping forever.
 // ============================================================================
 
 import fs from "fs";
@@ -23,8 +24,12 @@ import { fixerAgent } from "../core-team/FixerAgent";
 import { proposeCommand } from "../core-team/propose";
 import { autoApproveStore } from "./AutoApproveStore";
 import { insertVerifyIteration, listVerifyIterations } from "@/lib/db/verifyIterationsRepo";
+import { licenseManager } from "@/lib/licensing/LicenseManager";
+import { getPlanLimits } from "@/lib/licensing/plans";
 
-const MAX_ITERATIONS = 5;
+// Ceiling across all plans (Pro's own cap, from plans.ts) — used for display/
+// history reconstruction where no specific project's plan is in scope.
+const MAX_ITERATIONS = getPlanLimits("pro").verifyLoopMaxIterations;
 
 export interface VerifyCommandRecord {
     command: string;
@@ -110,9 +115,14 @@ class BuildVerifierImpl {
 
     async run(ctx: ProjectContext): Promise<VerifyReport> {
         const iterations: VerifyIterationRecord[] = [];
-        const autoApprove = autoApproveStore.get(ctx.projectId);
 
-        for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
+        // Free plan: capped at 2 iterations, auto-approve unavailable regardless of the
+        // project's stored toggle. Pro: full 5-iteration loop with auto-approve allowed.
+        const planLimits = getPlanLimits(licenseManager.getStatus().plan);
+        const maxIterations = planLimits.verifyLoopMaxIterations;
+        const autoApprove = planLimits.autoApproveAllowed && autoApproveStore.get(ctx.projectId);
+
+        for (let iteration = 1; iteration <= maxIterations; iteration++) {
             const detected = detectCommands(ctx);
             if (detected.length === 0) {
                 return this.finish(ctx.projectId, iterations, {
@@ -189,7 +199,9 @@ class BuildVerifierImpl {
             success: false,
             capped: true,
             awaitingApproval: false,
-            message: `Verify loop capped at ${MAX_ITERATIONS} iterations without reaching a green build.`,
+            message:
+                `Verify loop capped at ${maxIterations} iteration(s) without reaching a green build.` +
+                (planLimits.id === "free" ? " Upgrade to Pro for the full 5-iteration loop." : ""),
         });
     }
 

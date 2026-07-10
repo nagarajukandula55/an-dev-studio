@@ -12,6 +12,7 @@ type TabId =
   | "ai-agents"
   | "anu"
   | "providers"
+  | "plan"
   | "appearance"
   | "notifications"
   | "keyboard"
@@ -58,6 +59,7 @@ const TABS: { id: TabId; label: string; icon: string }[] = [
   { id: "ai-agents", label: "AI & Agents", icon: "🤖" },
   { id: "anu", label: "ANu", icon: "🧠" },
   { id: "providers", label: "Providers", icon: "🔌" },
+  { id: "plan", label: "Plan & License", icon: "💳" },
   { id: "appearance", label: "Appearance", icon: "🎨" },
   { id: "notifications", label: "Notifications", icon: "🔔" },
   { id: "keyboard", label: "Keyboard", icon: "⌨️" },
@@ -2323,6 +2325,217 @@ function DeploymentTab({ addToast }: { addToast: (msg: string, type: Toast["type
 }
 
 // ---------------------------------------------------------------------------
+// PlanTab
+// ---------------------------------------------------------------------------
+
+interface PlanLimits {
+  id: "free" | "pro" | "team";
+  label: string;
+  maxProjects: number | null;
+  providerAccess: "anu-only" | "full-chain";
+  verifyLoopMaxIterations: number;
+  autoApproveAllowed: boolean;
+  support: string;
+}
+
+interface LicenseStatus {
+  plan: "free" | "pro" | "team";
+  licenseKeyMasked: string | null;
+  lastValidatedAt: number | null;
+  graceActive: boolean;
+  graceExpiresAt: number | null;
+}
+
+function PlanTab({ addToast }: { addToast: (msg: string, type: Toast["type"]) => void }) {
+  const [status, setStatus] = useState<LicenseStatus | null>(null);
+  const [plan, setPlan] = useState<PlanLimits | null>(null);
+  const [licenseKey, setLicenseKey] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const refresh = useCallback(() => {
+    fetch("/api/licensing")
+      .then((r) => r.json())
+      .then((data: { status: LicenseStatus; plan: PlanLimits }) => {
+        setStatus(data.status);
+        setPlan(data.plan);
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  const handleActivate = async () => {
+    if (!licenseKey.trim()) {
+      addToast("Enter a license key first", "error");
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await fetch("/api/licensing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ licenseKey }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        addToast("License activated — you're on Pro.", "success");
+        setLicenseKey("");
+        setStatus(data.status);
+        setPlan(data.plan);
+      } else {
+        addToast(data.error ?? "Activation failed", "error");
+      }
+    } catch {
+      addToast("Network error", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeactivate = async () => {
+    setBusy(true);
+    try {
+      const res = await fetch("/api/licensing", { method: "DELETE" });
+      const data = await res.json();
+      addToast("License removed — back to Free.", "info");
+      setStatus(data.status);
+      setPlan(data.plan);
+    } catch {
+      addToast("Network error", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <SectionCard title="Current plan" description="AN Dev Studio is desktop-first: no hosted account, just a license key.">
+        <SettingRow label="Plan" description={plan?.support}>
+          <span
+            style={{
+              padding: "4px 12px",
+              borderRadius: 999,
+              fontSize: 12,
+              fontWeight: 700,
+              background: status?.plan === "pro" ? "#6366f115" : "#94a3b815",
+              color: status?.plan === "pro" ? "#6366f1" : "#64748b",
+            }}
+          >
+            {plan?.label ?? "…"}
+          </span>
+        </SettingRow>
+        <SettingRow label="Projects" description="Maximum projects this plan allows">
+          <span style={{ fontSize: 13, color: "var(--muted, #64748b)" }}>
+            {plan?.maxProjects === null ? "Unlimited" : plan?.maxProjects}
+          </span>
+        </SettingRow>
+        <SettingRow label="AI providers" description="Which providers the fallback chain can use">
+          <span style={{ fontSize: 13, color: "var(--muted, #64748b)" }}>
+            {plan?.providerAccess === "full-chain" ? "Full fallback chain" : "Local ANu only"}
+          </span>
+        </SettingRow>
+        <SettingRow label="Verify loop" description="Max iterations of the build-verify-fix loop">
+          <span style={{ fontSize: 13, color: "var(--muted, #64748b)" }}>
+            {plan?.verifyLoopMaxIterations} iteration(s){plan?.autoApproveAllowed ? ", auto-approve allowed" : ""}
+          </span>
+        </SettingRow>
+        {status?.graceActive && (
+          <div style={{ marginTop: 12, fontSize: 12, color: "#f59e0b" }}>
+            Offline grace period active — couldn&apos;t reach the license server recently, but your Pro plan stays
+            active until {status.graceExpiresAt ? new Date(status.graceExpiresAt).toLocaleDateString() : "soon"}.
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard title="License key" description="Paste the key from your purchase confirmation email to unlock Pro.">
+        <SettingRow label="License key" description={status?.licenseKeyMasked ? `Active: ${status.licenseKeyMasked}` : "No key activated"}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="text"
+              placeholder="XXXX-XXXX-XXXX-XXXX"
+              value={licenseKey}
+              onChange={(e) => setLicenseKey(e.target.value)}
+              style={{
+                width: 220,
+                height: 36,
+                padding: "0 12px",
+                borderRadius: 8,
+                border: "1.5px solid var(--border, #e2e8f0)",
+                background: "var(--background, #f8fafc)",
+                color: "var(--foreground, #0f172a)",
+                fontSize: 13,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            <button
+              onClick={() => void handleActivate()}
+              disabled={busy}
+              style={{
+                padding: "0 14px",
+                height: 36,
+                borderRadius: 8,
+                border: "none",
+                background: busy ? "#e2e8f0" : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                color: busy ? "#94a3b8" : "#ffffff",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: busy ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {busy ? "…" : "Activate"}
+            </button>
+            {status?.licenseKeyMasked && (
+              <button
+                onClick={() => void handleDeactivate()}
+                disabled={busy}
+                style={{
+                  padding: "0 14px",
+                  height: 36,
+                  borderRadius: 8,
+                  border: "1.5px solid var(--border, #e2e8f0)",
+                  background: "transparent",
+                  color: "var(--foreground, #0f172a)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: busy ? "not-allowed" : "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        </SettingRow>
+      </SectionCard>
+
+      <SectionCard title="Upgrade to Pro" description="Unlimited projects, the full AI provider fallback chain, and the full verify-and-fix loop with auto-approve.">
+        <a
+          href="https://an-dev-studio.lemonsqueezy.com/checkout"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-block",
+            padding: "10px 18px",
+            borderRadius: 8,
+            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+            color: "#ffffff",
+            fontSize: 13,
+            fontWeight: 700,
+            textDecoration: "none",
+          }}
+        >
+          Upgrade to Pro →
+        </a>
+      </SectionCard>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // AboutTab
 // ---------------------------------------------------------------------------
 
@@ -2533,6 +2746,8 @@ export default function SettingsPage() {
         return <ANuTab addToast={addToast} />;
       case "providers":
         return <ProvidersTab addToast={addToast} />;
+      case "plan":
+        return <PlanTab addToast={addToast} />;
       case "appearance":
         return <AppearanceTab addToast={addToast} />;
       case "notifications":

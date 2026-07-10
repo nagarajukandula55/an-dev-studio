@@ -99,6 +99,14 @@ export default function BuilderPage() {
     const [verifying, setVerifying] = useState(false);
     const [verifyReport, setVerifyReport] = useState<VerifyReport | null>(null);
     const [autoApprove, setAutoApprove] = useState(false);
+    const [autoApproveAllowed, setAutoApproveAllowed] = useState(true);
+
+    useEffect(() => {
+        fetch("/api/licensing")
+            .then((r) => r.json())
+            .then((data: { plan: { autoApproveAllowed: boolean } }) => setAutoApproveAllowed(data.plan.autoApproveAllowed))
+            .catch(() => {});
+    }, []);
 
     const refreshApprovals = useCallback((pid: string) => {
         fetch(`/api/agents/approvals?projectId=${encodeURIComponent(pid)}`)
@@ -323,9 +331,23 @@ export default function BuilderPage() {
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                         <div style={{ fontSize: 14, fontWeight: 800 }}>Verify build</div>
                         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                            <label style={{ fontSize: 12, color: "var(--muted, #64748b)", display: "flex", alignItems: "center", gap: 6 }}>
-                                <input type="checkbox" checked={autoApprove} onChange={() => void handleToggleAutoApprove()} />
-                                Auto-approve fix loop
+                            <label
+                                title={autoApproveAllowed ? undefined : "Auto-approve is a Pro feature — upgrade in Settings → Plan & License."}
+                                style={{
+                                    fontSize: 12,
+                                    color: autoApproveAllowed ? "var(--muted, #64748b)" : "#94a3b8",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                }}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={autoApprove}
+                                    disabled={!autoApproveAllowed}
+                                    onChange={() => void handleToggleAutoApprove()}
+                                />
+                                Auto-approve fix loop{!autoApproveAllowed ? " (Pro)" : ""}
                             </label>
                             <Button variant="primary" size="sm" onClick={() => void handleVerify()} loading={verifying}>
                                 {verifying ? "Verifying…" : "Verify build"}

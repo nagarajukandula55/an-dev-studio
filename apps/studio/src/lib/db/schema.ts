@@ -58,6 +58,12 @@ CREATE TABLE IF NOT EXISTS agent_runs (
 );
 CREATE INDEX IF NOT EXISTS idx_agent_runs_project_id ON agent_runs (project_id);
 
+CREATE TABLE IF NOT EXISTS settings (
+    key        TEXT PRIMARY KEY,
+    value      TEXT NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS verify_iterations (
     id                    TEXT PRIMARY KEY,
     project_id            TEXT NOT NULL,

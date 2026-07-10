@@ -64,6 +64,16 @@ describe("BuildVerifier", () => {
 
         const { autoApproveStore } = await import("../AutoApproveStore");
         autoApproveStore.set(ctx.projectId, true);
+
+        // Auto-approve is a Pro-only feature (see lib/licensing/plans.ts) —
+        // activate a mocked Pro license so this test actually exercises the
+        // unattended loop rather than pausing for manual approval.
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => ({ activated: true, instance: { id: "test-instance" } }),
+        }) as unknown as typeof fetch;
+        const { licenseManager } = await import("@/lib/licensing/LicenseManager");
+        await licenseManager.activate("TEST-PRO-KEY");
     });
 
     it("detects a broken build, fixes it via FixerAgent, and ends green", async () => {

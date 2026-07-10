@@ -4,6 +4,8 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
+import { licenseManager } from "@/lib/licensing/LicenseManager";
+import { getPlanLimits } from "@/lib/licensing/plans";
 
 export type ProjectType =
   | "website"
@@ -164,6 +166,18 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const projects = readProjects();
+
+    const planLimits = getPlanLimits(licenseManager.getStatus().plan);
+    if (planLimits.maxProjects !== null && projects.length >= planLimits.maxProjects) {
+      return NextResponse.json(
+        {
+          error: `${planLimits.label} plan is limited to ${planLimits.maxProjects} projects. Upgrade to Pro for unlimited projects.`,
+          upgradeRequired: true,
+        },
+        { status: 403 }
+      );
+    }
+
     const now = new Date().toISOString();
 
     const newProject: Project = {
