@@ -71,7 +71,7 @@ class ApprovalQueueImpl {
             if (req.action.kind === "file_write") {
                 await this.applyFileWrite(req.action, ctx);
             } else {
-                await this.applyShellCommand(req.action, ctx);
+                req.output = await this.applyShellCommand(req.action, ctx);
             }
             req.status = "applied";
         } catch (err) {
@@ -89,7 +89,8 @@ class ApprovalQueueImpl {
         fs.writeFileSync(resolved, action.newContent, "utf-8");
     }
 
-    private async applyShellCommand(action: Extract<AgentAction, { kind: "shell_command" }>, ctx: ProjectContext): Promise<void> {
+    /** Runs the command and returns its captured stdout+stderr, or throws (with output attached to the message) on non-zero exit. */
+    private async applyShellCommand(action: Extract<AgentAction, { kind: "shell_command" }>, ctx: ProjectContext): Promise<string> {
         const cwd = this.resolveSafePath(ctx.targetFolder, action.cwd || ".");
 
         // Runs via the Docker sandbox executor when available (see
@@ -101,21 +102,27 @@ class ApprovalQueueImpl {
         const { runInSandbox, isDockerAvailable } = await import("../sandbox/DockerSandbox");
 
         if (await isDockerAvailable()) {
-            await runInSandbox(action.command, cwd);
-            return;
+            const result = await runInSandbox(action.command, cwd);
+            const combined = `${result.stdout}${result.stderr}`;
+            if (result.code !== 0) {
+                throw new Error(`Command exited with code ${result.code}: ${result.stderr.slice(0, 2000)}`);
+            }
+            return combined;
         }
 
-        await new Promise<void>((resolve, reject) => {
+        return new Promise<string>((resolve, reject) => {
             const child = spawn(action.command, {
                 cwd,
                 shell: true,
                 windowsHide: true,
             });
+            let stdout = "";
             let stderr = "";
+            child.stdout?.on("data", (d) => { stdout += d.toString(); });
             child.stderr?.on("data", (d) => { stderr += d.toString(); });
             child.on("error", reject);
             child.on("exit", (code) => {
-                if (code === 0) resolve();
+                if (code === 0) resolve(`${stdout}${stderr}`);
                 else reject(new Error(`Command exited with code ${code}: ${stderr.slice(0, 2000)}`));
             });
         });

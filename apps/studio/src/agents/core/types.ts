@@ -55,12 +55,14 @@ export type ApprovalStatus = "pending" | "approved" | "rejected" | "applied" | "
 export interface ApprovalRequest {
     id: string;
     projectId: string;
-    agentPath: string; // e.g. "ui.component-builder" for display/audit trail
+    agentPath: string; // e.g. "verify.builder" for display/audit trail
     action: AgentAction;
     status: ApprovalStatus;
     createdAt: number;
     resolvedAt?: number;
     error?: string;
+    /** Captured stdout+stderr for shell_command actions once applied (success or failure) — feeds the Fixer. */
+    output?: string;
 }
 
 // ── Agent results ────────────────────────────────────────────────────────────

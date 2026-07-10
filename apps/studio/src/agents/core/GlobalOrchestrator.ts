@@ -19,6 +19,7 @@
 
 import type { AgentResult, ProjectContext } from "./types";
 import { agentStatusRegistry } from "./AgentStatusRegistry";
+import { projectContextStore } from "./ProjectContextStore";
 import { addActivity } from "@/lib/activityLog";
 import { buildProjectManifest } from "../manifest/ProjectManifest";
 import { plannerAgent } from "../core-team/PlannerAgent";
@@ -60,6 +61,7 @@ export interface GlobalRunOutcome {
 export class GlobalOrchestrator {
     async run(ctx: ProjectContext): Promise<GlobalRunOutcome> {
         ensureGlobalRegistered();
+        projectContextStore.set(ctx);
         agentStatusRegistry.update("global", { state: "planning", currentProjectId: ctx.projectId, lastMessage: ctx.prompt });
         addActivity({ message: `Planning build: "${ctx.prompt}"`, agent: "global", status: "success", category: "orchestration" });
 

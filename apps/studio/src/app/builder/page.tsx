@@ -55,6 +55,28 @@ interface ApprovalRequest {
     error?: string;
 }
 
+interface VerifyCommandRecord {
+    command: string;
+    requestId: string;
+    status: ApprovalRequest["status"];
+}
+
+interface VerifyIterationRecord {
+    iteration: number;
+    commands: VerifyCommandRecord[];
+    fixerDiagnosis?: string;
+    fixRequestIds?: string[];
+}
+
+interface VerifyReport {
+    projectId: string;
+    success: boolean;
+    capped: boolean;
+    awaitingApproval: boolean;
+    iterations: VerifyIterationRecord[];
+    message: string;
+}
+
 const PLATFORMS: { id: Platform; label: string; note?: string }[] = [
     { id: "web", label: "Web" },
     { id: "windows", label: "Windows Desktop" },
@@ -74,6 +96,9 @@ export default function BuilderPage() {
     const [approvals, setApprovals] = useState<ApprovalRequest[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [busyIds, setBusyIds] = useState<Set<string>>(new Set());
+    const [verifying, setVerifying] = useState(false);
+    const [verifyReport, setVerifyReport] = useState<VerifyReport | null>(null);
+    const [autoApprove, setAutoApprove] = useState(false);
 
     const refreshApprovals = useCallback((pid: string) => {
         fetch(`/api/agents/approvals?projectId=${encodeURIComponent(pid)}`)
@@ -90,6 +115,56 @@ export default function BuilderPage() {
         const interval = setInterval(() => refreshApprovals(projectId), 4000);
         return () => clearInterval(interval);
     }, [projectId, refreshApprovals]);
+
+    useEffect(() => {
+        if (!projectId) return;
+        fetch(`/api/agents/verify?projectId=${encodeURIComponent(projectId)}`)
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data: { report: VerifyReport | null; autoApprove: boolean } | null) => {
+                if (!data) return;
+                setVerifyReport(data.report);
+                setAutoApprove(data.autoApprove);
+            })
+            .catch(() => {});
+    }, [projectId]);
+
+    const handleVerify = useCallback(async () => {
+        if (!projectId) return;
+        setVerifying(true);
+        try {
+            const res = await fetch("/api/agents/verify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ projectId }),
+            });
+            const data = await res.json();
+            if (res.ok) {
+                setVerifyReport(data.report);
+                refreshApprovals(projectId);
+            } else {
+                setError(data.error ?? "Verify failed");
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Network error");
+        } finally {
+            setVerifying(false);
+        }
+    }, [projectId, refreshApprovals]);
+
+    const handleToggleAutoApprove = useCallback(async () => {
+        if (!projectId) return;
+        const next = !autoApprove;
+        setAutoApprove(next); // optimistic
+        try {
+            await fetch("/api/agents/verify", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ projectId, autoApprove: next }),
+            });
+        } catch {
+            setAutoApprove(!next); // revert on failure
+        }
+    }, [projectId, autoApprove]);
 
     const handleRun = useCallback(async () => {
         if (!prompt.trim() || !targetFolder.trim()) {
@@ -239,6 +314,51 @@ export default function BuilderPage() {
                                 </li>
                             ))}
                         </ul>
+                    )}
+                </Card>
+            )}
+
+            {projectId && (
+                <Card style={{ marginBottom: 20 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                        <div style={{ fontSize: 14, fontWeight: 800 }}>Verify build</div>
+                        <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                            <label style={{ fontSize: 12, color: "var(--muted, #64748b)", display: "flex", alignItems: "center", gap: 6 }}>
+                                <input type="checkbox" checked={autoApprove} onChange={() => void handleToggleAutoApprove()} />
+                                Auto-approve fix loop
+                            </label>
+                            <Button variant="primary" size="sm" onClick={() => void handleVerify()} loading={verifying}>
+                                {verifying ? "Verifying…" : "Verify build"}
+                            </Button>
+                        </div>
+                    </div>
+                    {verifyReport && (
+                        <div style={{ fontSize: 13 }}>
+                            <div
+                                style={{
+                                    color: verifyReport.success ? "#16a34a" : verifyReport.awaitingApproval ? "#f59e0b" : "#dc2626",
+                                    fontWeight: 700,
+                                    marginBottom: 8,
+                                }}
+                            >
+                                {verifyReport.message}
+                            </div>
+                            {verifyReport.iterations.map((it) => (
+                                <div key={it.iteration} style={{ marginBottom: 8, paddingLeft: 8, borderLeft: "2px solid var(--border, #e2e8f0)" }}>
+                                    <div style={{ fontWeight: 700, fontSize: 12 }}>Iteration {it.iteration}</div>
+                                    {it.commands.map((c) => (
+                                        <div key={c.requestId} style={{ fontSize: 12, color: "var(--muted, #64748b)" }}>
+                                            <StatusBadge status={c.status} /> {c.command}
+                                        </div>
+                                    ))}
+                                    {it.fixerDiagnosis && (
+                                        <div style={{ fontSize: 12, color: "var(--muted, #64748b)", marginTop: 4 }}>
+                                            Fixer: {it.fixerDiagnosis}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </Card>
             )}
