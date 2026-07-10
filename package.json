@@ -17,8 +17,7 @@
     "test:watch": "vitest --config vitest.config.mjs",
     "test:ui":    "vitest --ui --config vitest.config.mjs",
     "coverage":   "vitest run --coverage --config vitest.config.mjs",
-    "clean":      "npm run clean --workspace=@an-groups/studio",
-    "studio":     "tsx src/studio.ts"
+    "clean":      "npm run clean --workspace=@an-groups/studio"
   },
   "engines": {
     "node": ">=22.0.0",
