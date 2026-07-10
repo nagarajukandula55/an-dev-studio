@@ -11,6 +11,7 @@ import React, { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { AnuGuide } from "../anu-guide/AnuGuide";
+import { SetupWizard } from "../setup/SetupWizard";
 
 interface AppShellProps {
     children: React.ReactNode;
@@ -70,6 +71,10 @@ export function AppShell({ children, title }: AppShellProps) {
                 ANu Platform Guide — floats on every page
             ---------------------------------------------------------------- */}
             <AnuGuide />
+
+            {/* First-run experience: full-screen overlay instead of a dead
+                error the first time any agent call needs a provider. */}
+            <SetupWizard />
 
         </div>
     );
