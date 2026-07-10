@@ -1,14 +1,16 @@
 // ============================================================================
 // AN Dev Studio — Agent Framework Core Types
 //
-// Hierarchy: GlobalOrchestrator -> MiniOrchestrator (one per domain/platform)
-// -> MicroAgent (one per narrow, single-responsibility task).
+// Hierarchy: GlobalOrchestrator -> six core-team agents (Planner, Scaffolder,
+// Implementer, Reviewer, Fixer, Deployer — see ../core-team/**), all sharing
+// one ProjectManifest (../manifest/ProjectManifest.ts) so multi-file output
+// stays coherent.
 //
-// Every action a micro-agent wants to take on real files or a real shell is
+// Every action an agent wants to take on real files or a real shell is
 // represented as an ApprovalRequest and MUST go through the approval queue
 // (src/agents/core/ApprovalQueue.ts) before it is applied. Agents never
-// write to disk or run commands directly — see FileWriteAgentAction /
-// ShellCommandAgentAction below.
+// write to disk or run commands directly — see FileWriteAction /
+// ShellCommandAction below.
 // ============================================================================
 
 export type Platform = "web" | "windows" | "android" | "ios" | "macos";
@@ -61,14 +63,7 @@ export interface ApprovalRequest {
     error?: string;
 }
 
-// ── Agent hierarchy ──────────────────────────────────────────────────────────
-
-export interface AgentTask {
-    id: string;
-    description: string;
-    /** Free-form input the agent needs, e.g. { componentName: "LoginForm" }. */
-    input: Record<string, unknown>;
-}
+// ── Agent results ────────────────────────────────────────────────────────────
 
 export interface AgentResult {
     taskId: string;
@@ -77,46 +72,4 @@ export interface AgentResult {
     summary: string;
     success: boolean;
     error?: string;
-}
-
-/**
- * A MicroAgent owns exactly one narrow responsibility (e.g. "write a single
- * React component", "write a single API route", "write one test file").
- * It proposes actions via the ApprovalQueue rather than touching disk itself.
- */
-export interface MicroAgent {
-    readonly id: string;
-    readonly label: string;
-    readonly description: string;
-    run(task: AgentTask, ctx: ProjectContext): Promise<AgentResult>;
-}
-
-/**
- * A MiniOrchestrator owns one domain (UI, Backend, Database, Testing,
- * DevOps) or one platform (Web, Windows, Android, iOS, macOS) or one
- * cross-cutting concern (Marketing, Automation). It decomposes a task handed
- * down from the GlobalOrchestrator into smaller tasks for its own
- * micro-agents.
- */
-export interface MiniOrchestrator {
-    readonly id: string;
-    readonly label: string;
-    readonly description: string;
-    readonly microAgents: MicroAgent[];
-    /** Whether this mini-orchestrator can actually run on this machine right now (toolchain check). */
-    isAvailable(): Promise<{ available: boolean; reason?: string }>;
-    /** Break a domain-level task into concrete micro-agent tasks and run them. */
-    plan(task: AgentTask, ctx: ProjectContext): Promise<AgentTask[]>;
-    run(task: AgentTask, ctx: ProjectContext): Promise<AgentResult[]>;
-}
-
-export interface OrchestrationPlanStep {
-    miniOrchestratorId: string;
-    task: AgentTask;
-}
-
-export interface OrchestrationPlan {
-    projectId: string;
-    steps: OrchestrationPlanStep[];
-    rationale: string;
 }

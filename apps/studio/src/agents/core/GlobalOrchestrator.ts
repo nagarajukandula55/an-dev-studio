@@ -1,170 +1,142 @@
 // ============================================================================
 // AN Dev Studio — Global Orchestrator
 //
-// Top of the hierarchy. Takes a user's build request + chosen platform,
-// asks the LLM to break it into a plan (a list of steps, each routed to one
-// mini-orchestrator), then runs each mini-orchestrator's own planning/run
-// loop. Every actual file write or command still flows through the
-// ApprovalQueue — the orchestrator only ever produces *proposals*.
+// Top-level planner/router over the six core-team agents (Planner,
+// Scaffolder, Implementer, Reviewer, Fixer, Deployer — see
+// ../core-team/**). Takes a user's build request + chosen platform, gets a
+// BuildPlan from the Planner, has the Scaffolder lay down the project
+// skeleton, then runs the Implementer + Reviewer for each planned feature in
+// turn, and finally the Deployer. Every actual file write or command still
+// flows through the ApprovalQueue — this class only ever produces
+// *proposals*, gated on human approval.
+//
+// Replaces the old GlobalOrchestrator -> ~12 MiniOrchestrator -> ~48
+// MicroAgent hierarchy (see legacy notes in docs/audit.md): six
+// context-aware agents sharing one ProjectManifest produce more coherent
+// multi-file output than dozens of single-file micro-agents working in
+// isolation.
 // ============================================================================
 
-import type { AgentResult, MiniOrchestrator, OrchestrationPlan, ProjectContext } from "./types";
-import { completeJson } from "./llm";
+import type { AgentResult, ProjectContext } from "./types";
 import { agentStatusRegistry } from "./AgentStatusRegistry";
 import { addActivity } from "@/lib/activityLog";
+import { buildProjectManifest } from "../manifest/ProjectManifest";
+import { plannerAgent } from "../core-team/PlannerAgent";
+import { scaffolderAgent } from "../core-team/ScaffolderAgent";
+import { implementerAgent } from "../core-team/ImplementerAgent";
+import { reviewerAgent } from "../core-team/ReviewerAgent";
+import { deployerAgent } from "../core-team/DeployerAgent";
+import type { BuildPlan } from "../core-team/types";
 
-import { uiMiniOrchestrator } from "../mini/ui";
-import { backendMiniOrchestrator } from "../mini/backend";
-import { databaseMiniOrchestrator } from "../mini/database";
-import { testingMiniOrchestrator } from "../mini/testing";
-import { devopsMiniOrchestrator } from "../mini/devops";
-import { webPlatformMiniOrchestrator } from "../mini/platform-web";
-import { windowsPlatformMiniOrchestrator } from "../mini/platform-windows";
-import { androidPlatformMiniOrchestrator } from "../mini/platform-android";
-import { iosPlatformMiniOrchestrator } from "../mini/platform-ios";
-import { macosPlatformMiniOrchestrator } from "../mini/platform-macos";
-import { marketingMiniOrchestrator } from "../mini/marketing";
-import { automationMiniOrchestrator } from "../mini/automation";
-
-const DOMAIN_ORCHESTRATORS: MiniOrchestrator[] = [
-    uiMiniOrchestrator,
-    backendMiniOrchestrator,
-    databaseMiniOrchestrator,
-    testingMiniOrchestrator,
-    devopsMiniOrchestrator,
-    marketingMiniOrchestrator,
-    automationMiniOrchestrator,
-];
-
-const PLATFORM_ORCHESTRATORS: Record<string, MiniOrchestrator> = {
-    web: webPlatformMiniOrchestrator,
-    windows: windowsPlatformMiniOrchestrator,
-    android: androidPlatformMiniOrchestrator,
-    ios: iosPlatformMiniOrchestrator,
-    macos: macosPlatformMiniOrchestrator,
-};
-
-export function allMiniOrchestrators(): MiniOrchestrator[] {
-    return [...DOMAIN_ORCHESTRATORS, ...Object.values(PLATFORM_ORCHESTRATORS)];
-}
+const CORE_TEAM_AGENTS = [
+    { id: "planner", label: "Planner" },
+    { id: "scaffolder", label: "Scaffolder" },
+    { id: "implementer", label: "Implementer" },
+    { id: "reviewer", label: "Reviewer" },
+    { id: "fixer", label: "Fixer" },
+    { id: "deployer", label: "Deployer" },
+] as const;
 
 let globalRegistered = false;
 function ensureGlobalRegistered(): void {
     if (globalRegistered) return;
     agentStatusRegistry.register("global", "Global Orchestrator", "global");
+    for (const agent of CORE_TEAM_AGENTS) {
+        agentStatusRegistry.register(agent.id, agent.label, "mini", "global");
+    }
     globalRegistered = true;
 }
 
-/**
- * Registers the entire org chart (global + every mini + every micro-agent)
- * as "idle" up front, so the dashboard's agent-status view shows the full
- * structure immediately on load — not just the agents that happen to have
- * run at least once. Safe to call multiple times (each register() is a
- * no-op for an id already known).
- */
+/** Registers the whole org chart as "idle" up front so the dashboard shows it immediately. Safe to call repeatedly. */
 export function registerAllAgents(): void {
     ensureGlobalRegistered();
-    for (const orchestrator of allMiniOrchestrators()) {
-        agentStatusRegistry.register(orchestrator.id, orchestrator.label, "mini", "global");
-        for (const agent of orchestrator.microAgents) {
-            agentStatusRegistry.register(`${orchestrator.id}.${agent.id}`, agent.label, "micro", orchestrator.id);
-        }
-    }
 }
 
-interface PlanResponse {
-    rationale: string;
-    steps: { miniOrchestratorId: string; description: string; input: Record<string, unknown> }[];
+export interface GlobalRunOutcome {
+    plan: BuildPlan & { projectId: string };
+    results: AgentResult[];
 }
 
 export class GlobalOrchestrator {
-    /**
-     * Only the mini-orchestrator for the project's chosen platform, plus the
-     * platform-agnostic domain orchestrators, are ever consulted for a given
-     * project — this is what makes platform selection actually scope the
-     * work instead of firing every platform on every build.
-     */
-    private applicableOrchestrators(ctx: ProjectContext): MiniOrchestrator[] {
-        const platformOrchestrator = PLATFORM_ORCHESTRATORS[ctx.platform];
-
-        // iOS/macOS builds cannot run or be tested on this machine (Xcode-only,
-        // macOS-only) — those platforms exist to propose source files for
-        // later use elsewhere, so skip Testing entirely for them rather than
-        // proposing tests that can never actually run here.
-        const skipTesting = ctx.platform === "ios" || ctx.platform === "macos";
-        const domains = skipTesting
-            ? DOMAIN_ORCHESTRATORS.filter((o) => o.id !== "testing")
-            : DOMAIN_ORCHESTRATORS;
-
-        return platformOrchestrator ? [...domains, platformOrchestrator] : domains;
-    }
-
-    async plan(ctx: ProjectContext): Promise<OrchestrationPlan> {
-        const candidates = this.applicableOrchestrators(ctx);
-        const catalog = candidates
-            .map((o) => `- id: "${o.id}" — ${o.label}: ${o.description}`)
-            .join("\n");
-
-        const response = await completeJson<PlanResponse>(
-            `You are the global orchestrator for a software build system. A user wants to build:\n\n` +
-            `"${ctx.prompt}"\n\nTarget platform: ${ctx.platform}\n\n` +
-            `Available mini-orchestrators (route steps to these by id, exactly as spelled):\n${catalog}\n\n` +
-            `Break this into an ordered list of steps. Each step names one mini-orchestrator id, a short ` +
-            `description of what it should do, and any input data it needs (as a JSON object). Keep it to the ` +
-            `minimum steps needed for a working first version — this is meant to produce a real, runnable slice, ` +
-            `not an exhaustive spec.\n\n` +
-            `Respond as JSON: { "rationale": string, "steps": [{ "miniOrchestratorId": string, "description": string, "input": object }] }`,
-        );
-
-        return {
-            projectId: ctx.projectId,
-            rationale: response.rationale,
-            steps: response.steps.map((s, i) => ({
-                miniOrchestratorId: s.miniOrchestratorId,
-                task: { id: `${ctx.projectId}-step-${i}`, description: s.description, input: s.input ?? {} },
-            })),
-        };
-    }
-
-    async run(ctx: ProjectContext): Promise<{ plan: OrchestrationPlan; results: AgentResult[] }> {
+    async run(ctx: ProjectContext): Promise<GlobalRunOutcome> {
         ensureGlobalRegistered();
         agentStatusRegistry.update("global", { state: "planning", currentProjectId: ctx.projectId, lastMessage: ctx.prompt });
         addActivity({ message: `Planning build: "${ctx.prompt}"`, agent: "global", status: "success", category: "orchestration" });
 
-        const plan = await this.plan(ctx);
-        const candidates = this.applicableOrchestrators(ctx);
         const results: AgentResult[] = [];
 
+        // 1. Plan — the Planner sees whatever's already in the target folder too, so
+        //    re-runs on an existing project extend rather than re-scaffold it.
+        agentStatusRegistry.update("planner", { state: "running", currentProjectId: ctx.projectId });
+        const initialManifest = buildProjectManifest(ctx.targetFolder);
+        const plan = await plannerAgent.plan(ctx, initialManifest);
+        agentStatusRegistry.update("planner", { state: "success", lastMessage: plan.rationale });
         agentStatusRegistry.update("global", { state: "running", lastMessage: plan.rationale });
 
-        for (const step of plan.steps) {
-            const orchestrator = candidates.find((o) => o.id === step.miniOrchestratorId);
-            if (!orchestrator) {
-                results.push({
-                    taskId: step.task.id,
-                    approvalRequestIds: [],
-                    summary: `No mini-orchestrator found for id "${step.miniOrchestratorId}" — skipped.`,
-                    success: false,
-                    error: "unknown_mini_orchestrator",
-                });
-                continue;
-            }
-
-            const availability = await orchestrator.isAvailable();
-            if (!availability.available) {
-                results.push({
-                    taskId: step.task.id,
-                    approvalRequestIds: [],
-                    summary: `${orchestrator.label} is unavailable: ${availability.reason ?? "unknown reason"}`,
-                    success: false,
-                    error: "orchestrator_unavailable",
-                });
-                continue;
-            }
-
-            const stepResults = await orchestrator.run(step.task, ctx);
-            results.push(...stepResults);
+        // 2. Scaffold — project skeleton, platform-specific.
+        agentStatusRegistry.update("scaffolder", { state: "running", currentProjectId: ctx.projectId });
+        const availability = await scaffolderAgent.isAvailable(ctx);
+        if (!availability.available) {
+            results.push({
+                taskId: `${ctx.projectId}-scaffold`,
+                approvalRequestIds: [],
+                summary: `Scaffolder: ${ctx.platform} is unavailable — ${availability.reason ?? "unknown reason"}. Proposing source files anyway; nothing can be verified/built on this machine.`,
+                success: false,
+                error: "platform_unavailable",
+            });
+            agentStatusRegistry.update("scaffolder", { state: "error", lastMessage: availability.reason });
         }
+
+        const scaffoldRequestIds = await scaffolderAgent.run(ctx, plan, initialManifest);
+        agentStatusRegistry.update("scaffolder", { state: "success", lastMessage: `Proposed ${scaffoldRequestIds.length} scaffold file(s).` });
+        results.push({
+            taskId: `${ctx.projectId}-scaffold`,
+            approvalRequestIds: scaffoldRequestIds,
+            summary: `Scaffolder proposed ${scaffoldRequestIds.length} file(s).`,
+            success: true,
+        });
+
+        // 3. Implement + Review each feature in turn — always against a fresh manifest
+        //    focused on that feature's files, so later features see what earlier ones proposed.
+        for (const feature of plan.features) {
+            agentStatusRegistry.update("implementer", { state: "running", currentProjectId: ctx.projectId, lastMessage: feature.title });
+
+            const manifest = buildProjectManifest(ctx.targetFolder, { focusPaths: feature.files });
+            const requestIds = await implementerAgent.run(ctx, feature, manifest);
+            agentStatusRegistry.update("implementer", { state: "success", lastMessage: `${feature.title}: proposed ${requestIds.length} file(s).` });
+
+            agentStatusRegistry.update("reviewer", { state: "running", currentProjectId: ctx.projectId, lastMessage: feature.title });
+            const review = await reviewerAgent.review(ctx, requestIds, manifest);
+            agentStatusRegistry.update("reviewer", {
+                state: review.ok ? "success" : "error",
+                lastMessage: review.ok ? `${feature.title}: no coherence issues.` : `${feature.title}: ${review.issues.length} issue(s) found.`,
+            });
+
+            const errorIssues = review.issues.filter((i) => i.severity === "error");
+            results.push({
+                taskId: feature.id,
+                approvalRequestIds: requestIds,
+                summary:
+                    `${feature.title}: proposed ${requestIds.length} file(s). ` +
+                    (review.issues.length === 0
+                        ? "Reviewer found no coherence issues."
+                        : `Reviewer flagged ${review.issues.length} issue(s): ${review.issues.map((i) => `${i.relativePath} — ${i.message}`).join("; ")}`),
+                success: errorIssues.length === 0,
+                error: errorIssues.length > 0 ? "review_flagged_errors" : undefined,
+            });
+        }
+
+        // 4. Deploy config — always proposed last, once the project shape exists.
+        agentStatusRegistry.update("deployer", { state: "running", currentProjectId: ctx.projectId });
+        const finalManifest = buildProjectManifest(ctx.targetFolder);
+        const deployRequestIds = await deployerAgent.run(ctx, finalManifest);
+        agentStatusRegistry.update("deployer", { state: "success", lastMessage: `Proposed ${deployRequestIds.length} deploy config file(s).` });
+        results.push({
+            taskId: `${ctx.projectId}-deploy`,
+            approvalRequestIds: deployRequestIds,
+            summary: `Deployer proposed ${deployRequestIds.length} file(s).`,
+            success: true,
+        });
 
         const anyFailed = results.some((r) => !r.success);
         agentStatusRegistry.update("global", { state: anyFailed ? "error" : "success", lastMessage: `Build finished: ${results.length} task(s)` });
@@ -175,7 +147,7 @@ export class GlobalOrchestrator {
             category: "orchestration",
         });
 
-        return { plan, results };
+        return { plan: { ...plan, projectId: ctx.projectId }, results };
     }
 }
 

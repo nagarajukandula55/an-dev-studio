@@ -4,10 +4,11 @@
 // AN Dev Studio — Builder
 //
 // The user-facing entry point to the agent hierarchy: pick a platform and a
-// target folder, describe what to build, and the Global Orchestrator fans
-// the work out to mini-orchestrators and their micro-agents. Every proposed
-// file write or shell command shows up below as a pending approval — nothing
-// touches disk or runs until you click Approve.
+// target folder, describe what to build, and the Global Orchestrator routes
+// the work through the six core-team agents (Planner, Scaffolder,
+// Implementer, Reviewer, Fixer, Deployer). Every proposed file write or
+// shell command shows up below as a pending approval — nothing touches disk
+// or runs until you click Approve.
 // ============================================================================
 
 import { useCallback, useEffect, useState } from "react";

@@ -3,7 +3,7 @@
 //
 // File-backed activity log used by:
 //  - /api/activity (the route the dashboard polls)
-//  - the agent framework itself (GlobalOrchestrator, BaseMiniOrchestrator,
+//  - the agent framework itself (GlobalOrchestrator, the core-team agents,
 //    ApprovalQueue) so real agent runs actually produce entries, instead of
 //    the dashboard/notification bell showing a static hardcoded placeholder.
 //
