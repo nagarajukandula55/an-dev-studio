@@ -2578,7 +2578,7 @@ function AboutTab() {
                 color: "var(--foreground, #0f172a)",
               }}
             >
-              AN Enterprises Studio
+              AN Dev Studio
             </h2>
             <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--muted, #64748b)" }}>
               The AI-native development workspace
@@ -2630,12 +2630,12 @@ function AboutTab() {
 
       <SectionCard title="System Info">
         {[
-          { label: "Version", value: "0.1.0-alpha" },
+          { label: "Version", value: "1.0.0" },
           { label: "Build", value: new Date().toISOString().split("T")[0] },
-          { label: "Framework", value: "Next.js 15 (App Router)" },
-          { label: "Runtime", value: "Node.js / Vercel Edge" },
+          { label: "Framework", value: "Next.js 16 (App Router)" },
+          { label: "Runtime", value: "Node.js" },
           { label: "AI Engine", value: "ANu + Multi-provider fallback" },
-          { label: "License", value: "Proprietary — AN Enterprises" },
+          { label: "License", value: "Proprietary — AN Group" },
         ].map(({ label, value }) => (
           <SettingRow key={label} label={label}>
             <span

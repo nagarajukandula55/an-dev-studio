@@ -1,17 +1,1 @@
-[
-  {
-    "id": "1783346387686-aqhvfwr",
-    "name": "Test Landing Page",
-    "description": "Create a Landing page for ecommerce website selling Instant Mix flours for Breakfasts fetch details from https://www.shopnative.in",
-    "type": "website",
-    "techStack": [
-      "Vercel"
-    ],
-    "status": "planning",
-    "createdAt": "2026-07-06T13:59:47.686Z",
-    "updatedAt": "2026-07-06T13:59:47.686Z",
-    "tasksTotal": 0,
-    "tasksCompleted": 0,
-    "color": "#6366f1"
-  }
-]
+[]

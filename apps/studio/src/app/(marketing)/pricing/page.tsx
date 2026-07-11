@@ -53,7 +53,7 @@ export default function PricingPage() {
             {/* Hero */}
             <section style={{ maxWidth: 880, margin: "0 auto", padding: "96px 24px 64px", textAlign: "center" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.08em", color: "#818cf8", marginBottom: 16 }}>
-                    AN DEV STUDIO
+                    AN DEV STUDIO — BY AN GROUP
                 </div>
                 <h1 style={{ fontSize: 48, fontWeight: 800, lineHeight: 1.1, margin: "0 0 20px", letterSpacing: "-0.02em" }}>
                     A local-first AI app builder that never sees your code.
@@ -169,6 +169,24 @@ export default function PricingPage() {
                     <code>docs/pricing-launch.md</code> for the full flow.
                 </p>
             </section>
+
+            {/* Footer */}
+            <footer style={{ borderTop: "1px solid #1f2937", padding: "32px 24px", textAlign: "center" }}>
+                <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 8px" }}>
+                    AN Dev Studio is built by <strong style={{ color: "#94a3b8" }}>AN Group</strong>.
+                </p>
+                <div style={{ display: "flex", gap: 16, justifyContent: "center", fontSize: 12 }}>
+                    <Link href="/terms" style={{ color: "#64748b", textDecoration: "none" }}>
+                        Terms
+                    </Link>
+                    <Link href="/privacy" style={{ color: "#64748b", textDecoration: "none" }}>
+                        Privacy
+                    </Link>
+                    <a href="mailto:hello@angroups.dev" style={{ color: "#64748b", textDecoration: "none" }}>
+                        Contact
+                    </a>
+                </div>
+            </footer>
         </div>
     );
 }
