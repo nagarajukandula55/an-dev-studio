@@ -16,6 +16,8 @@
 // same activate/revalidate/getStatus contract against Paddle's API instead.
 // ============================================================================
 
+import os from "os";
+import crypto from "crypto";
 import type { PlanId } from "./plans";
 import { getSetting, setSetting } from "@/lib/db/settingsRepo";
 
@@ -23,6 +25,26 @@ const REVALIDATE_INTERVAL_MS = 24 * 60 * 60 * 1000; // re-check the network at m
 const OFFLINE_GRACE_MS = 7 * 24 * 60 * 60 * 1000; // never brick the app because wifi is down
 
 const SETTINGS_KEY = "license_state";
+const MACHINE_NAME_KEY = "machine_instance_name";
+
+/**
+ * A stable, human-readable identifier for *this machine*, independent of
+ * which license key gets activated on it. Persisted once and reused across
+ * activate/validate/deactivate calls, so Lemon Squeezy's dashboard shows
+ * distinct instances per machine — the operational half of enforcing
+ * "one activation per user": pair this with `activation_limit` set on the
+ * product in the Lemon Squeezy dashboard (that's the part that actually
+ * rejects a second machine trying to activate the same key; this just makes
+ * sharing visible and attributable when it happens).
+ */
+function getMachineInstanceName(): string {
+    const existing = getSetting(MACHINE_NAME_KEY);
+    if (existing) return existing;
+
+    const generated = `${os.hostname() || "unknown-host"}-${crypto.randomUUID().slice(0, 8)}`;
+    setSetting(MACHINE_NAME_KEY, generated);
+    return generated;
+}
 
 export const LEMONSQUEEZY_CONFIG = {
     apiBase: process.env.LEMONSQUEEZY_API_BASE?.trim() || "https://api.lemonsqueezy.com/v1",
@@ -127,7 +149,7 @@ class LicenseManagerImpl {
         if (!trimmed) return { ok: false, error: "License key is required." };
 
         try {
-            const result = await callLemonSqueezy("activate", { license_key: trimmed, instance_name: "an-dev-studio-desktop" });
+            const result = await callLemonSqueezy("activate", { license_key: trimmed, instance_name: getMachineInstanceName() });
             if (!result.activated) {
                 return { ok: false, error: result.error ?? "License key could not be activated." };
             }

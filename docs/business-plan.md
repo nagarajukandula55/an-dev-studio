@@ -70,6 +70,10 @@ Concrete, ordered checklist — none of this is something I can do for you:
      `LEMONSQUEEZY_PRODUCT_ID` (see `lib/licensing/LicenseManager.ts`).
    - Update the checkout URL placeholder (`https://an-dev-studio.lemonsqueezy.com/checkout`) in
      `src/app/settings/page.tsx` (PlanTab) and `src/app/(marketing)/pricing/page.tsx` with your real checkout link.
+   - **Set `activation_limit` to `1`** on the Pro product. This is what actually enforces "one activation per
+     paying user" — the app already sends a stable per-machine instance name with every activation (see
+     `docs/pricing-launch.md` § "Enforcing one activation per license"), but the limit itself is a dashboard
+     setting, not something the app can set for you.
 3. **Buy a domain** and point it at wherever you deploy the app/landing page.
 4. **Set up a support inbox** (e.g. `support@yourdomain.com`) and put it in the pricing/settings pages in place of
    the placeholder `hello@angroups.dev`.
@@ -94,7 +98,26 @@ The product being finished doesn't create users. Cheapest channels for a dev too
   `src/app/(marketing)/pricing/page.tsx`'s privacy-pitch section; lean into "approval-gated, sandboxed, local-first"
   as the wedge against cloud-only competitors.
 
-## 6. What's already done vs. still needed
+## 6. Licensing authenticity — what's actually enforceable
+
+For a locally-run app (no hosted backend you control), there's a hard ceiling: anyone with enough skill can read
+the compiled app and patch out a license check. No local licensing scheme — Lemon Squeezy or otherwise — changes
+that ceiling. What's realistic and already built:
+
+- **`activation_limit: 1`** on the Pro product (dashboard setting, §4.2) stops the common case: one person sharing
+  their key with friends/coworkers. A second machine activating the same key gets rejected by Lemon Squeezy's API.
+- **A stable per-machine instance name** is sent with every activation (`LicenseManager.getMachineInstanceName()`),
+  so abuse is visible in your dashboard even before the limit rejects it.
+- **24h re-validation + 7-day offline grace** means a tampered local install still has to survive a real network
+  check periodically, unless someone also fakes the network response — raises the bar past "edit one boolean."
+- **Ship compiled builds, not source**, to paying customers (the packaged Tauri installer, or a built web
+  deployment) — a compiled bundle is meaningfully harder to patch than a git checkout of this repo.
+
+If you eventually want enforcement stronger than "stops casual sharing," the only real lever is moving the check
+onto infrastructure you control — i.e. the hosted-SaaS model discussed and *not* pursued in this round (it changes
+the cost/architecture significantly — see the multi-tenancy discussion in the project history).
+
+## 7. What's already done vs. still needed
 
 | | Status |
 |---|---|
