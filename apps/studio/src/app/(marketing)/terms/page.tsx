@@ -7,9 +7,15 @@
 // visible, not as legally binding text.
 // ============================================================================
 
+export const metadata = {
+    title: "Terms of Service",
+    description: "AN Dev Studio terms of service — provided by AN Group.",
+    alternates: { canonical: "/terms" },
+};
+
 export default function TermsPage() {
     return (
-        <div style={{ maxWidth: 720, margin: "0 auto", padding: "64px 24px", color: "#e2e8f0", background: "#0b0f19", minHeight: "100vh" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto", padding: "64px 24px" }}>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Terms of Service</h1>
             <p style={{ color: "#f59e0b", fontSize: 13, marginBottom: 32 }}>
                 ⚠️ Placeholder — this page has not been reviewed by a lawyer. Replace with real terms before accepting

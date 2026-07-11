@@ -74,7 +74,8 @@ Concrete, ordered checklist — none of this is something I can do for you:
      paying user" — the app already sends a stable per-machine instance name with every activation (see
      `docs/pricing-launch.md` § "Enforcing one activation per license"), but the limit itself is a dashboard
      setting, not something the app can set for you.
-3. **Buy a domain** and point it at wherever you deploy the app/landing page.
+3. **Buy a domain** and point it at wherever you deploy the app/landing page. Set `NEXT_PUBLIC_SITE_URL` to it
+   (drives canonical URLs, sitemap.xml, and Open Graph tags — see `docs/seo-geo.md`).
 4. **Set up a support inbox** (e.g. `support@yourdomain.com`) and put it in the pricing/settings pages in place of
    the placeholder `hello@angroups.dev`.
 5. **Replace the placeholder legal pages.** `src/app/(marketing)/terms/page.tsx` and `.../privacy/page.tsx` are
@@ -123,9 +124,10 @@ the cost/architecture significantly — see the multi-tenancy discussion in the 
 |---|---|
 | Plan gating (server-side) | ✅ Done — Phase 5 |
 | License activation against Lemon Squeezy | ✅ Done (needs a real store/product ID — see §4.2) |
-| Pricing page | ✅ Done — `src/app/(marketing)/pricing/page.tsx` |
+| Marketing site (pricing/features/FAQ) | ✅ Done — `src/app/(marketing)/{pricing,features,faq}` |
+| SEO/GEO (sitemap, robots, JSON-LD, llms.txt, OG image) | ✅ Done — see `docs/seo-geo.md` |
 | Terms/Privacy | ⚠️ Placeholder only — needs real legal text |
 | Payment provider account | ❌ Not created — you need to do this |
 | Domain | ❌ Not purchased |
 | Support channel | ❌ Not set up |
-| Distribution/marketing | ❌ Not started |
+| Distribution/marketing (backlinks, Show HN, demo video) | ❌ Not started — this is on you, not code |

@@ -1,14 +1,28 @@
 // ============================================================================
-// AN Dev Studio — Public pricing / marketing page
+// AN Dev Studio — Public pricing / marketing landing page
 //
-// Standalone (no AppShell/sidebar — this is meant to be linkable to people
-// who haven't installed the app yet). Hero, the privacy pitch, plan
-// comparison table, and checkout links. Plan data mirrors
+// The main public entry point for people who haven't installed the app yet:
+// hero, the privacy pitch, plan comparison, and checkout links. Wrapped by
+// (marketing)/layout.tsx for nav/footer. Plan data mirrors
 // lib/licensing/plans.ts by hand (this page has no server-side data
 // dependency on purpose, so it can be statically generated/exported).
+//
+// SEO/GEO: metadata export below + JSON-LD (SoftwareApplication, Offer,
+// Organization) gives search engines and AI answer engines structured,
+// quotable facts about what this product is and costs — see docs/seo-geo.md.
 // ============================================================================
 
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+    title: "Pricing — Local-first AI App Builder",
+    description:
+        "AN Dev Studio: a local-first AI app builder by AN Group. Free plan includes 3 projects and the local ANu " +
+        "provider. Pro ($19/mo) unlocks unlimited projects, the full AI provider chain, and the full verify-and-fix " +
+        "loop with auto-approve.",
+    alternates: { canonical: "/pricing" },
+};
 
 const PLANS = [
     {
@@ -47,11 +61,42 @@ const PLANS = [
     },
 ];
 
+const STRUCTURED_DATA = {
+    "@context": "https://schema.org",
+    "@graph": [
+        {
+            "@type": "SoftwareApplication",
+            name: "AN Dev Studio",
+            applicationCategory: "DeveloperApplication",
+            operatingSystem: "Windows, macOS, Linux, Web",
+            description:
+                "A local-first AI app builder where six AI agents plan, scaffold, implement, review, fix, and " +
+                "deploy real software projects from a prompt. Every file write and shell command is gated behind " +
+                "human approval.",
+            offers: [
+                { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD" },
+                { "@type": "Offer", name: "Pro", price: "19", priceCurrency: "USD", priceSpecification: { "@type": "UnitPriceSpecification", price: "19", priceCurrency: "USD", unitCode: "MON" } },
+            ],
+            publisher: { "@type": "Organization", name: "AN Group" },
+        },
+        {
+            "@type": "Organization",
+            name: "AN Group",
+            url: "https://andevstudio.com",
+        },
+    ],
+};
+
 export default function PricingPage() {
     return (
-        <div style={{ minHeight: "100vh", background: "#0b0f19", color: "#e2e8f0" }}>
+        <>
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
+            />
+
             {/* Hero */}
-            <section style={{ maxWidth: 880, margin: "0 auto", padding: "96px 24px 64px", textAlign: "center" }}>
+            <section style={{ maxWidth: 880, margin: "0 auto", padding: "72px 24px 64px", textAlign: "center" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: "0.08em", color: "#818cf8", marginBottom: 16 }}>
                     AN DEV STUDIO — BY AN GROUP
                 </div>
@@ -77,8 +122,8 @@ export default function PricingPage() {
                     >
                         Open the app →
                     </Link>
-                    <a
-                        href="https://github.com"
+                    <Link
+                        href="/features"
                         style={{
                             padding: "12px 24px",
                             borderRadius: 10,
@@ -89,8 +134,8 @@ export default function PricingPage() {
                             textDecoration: "none",
                         }}
                     >
-                        View on GitHub
-                    </a>
+                        See how it works
+                    </Link>
                 </div>
             </section>
 
@@ -118,7 +163,7 @@ export default function PricingPage() {
             </section>
 
             {/* Plan comparison */}
-            <section style={{ maxWidth: 1000, margin: "0 auto", padding: "0 24px 96px" }}>
+            <section id="plans" style={{ maxWidth: 1000, margin: "0 auto", padding: "0 24px 96px", scrollMarginTop: 88 }}>
                 <h2 style={{ fontSize: 28, fontWeight: 800, textAlign: "center", marginBottom: 40 }}>Plans</h2>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 20 }}>
                     {PLANS.map((plan) => (
@@ -166,27 +211,10 @@ export default function PricingPage() {
                 </div>
                 <p style={{ textAlign: "center", fontSize: 12, color: "#64748b", marginTop: 24 }}>
                     Checkout is hosted by Lemon Squeezy — AN Dev Studio never handles your card details. See{" "}
+                    <Link href="/faq" style={{ color: "#818cf8" }}>the FAQ</Link> for more, or{" "}
                     <code>docs/pricing-launch.md</code> for the full flow.
                 </p>
             </section>
-
-            {/* Footer */}
-            <footer style={{ borderTop: "1px solid #1f2937", padding: "32px 24px", textAlign: "center" }}>
-                <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 8px" }}>
-                    AN Dev Studio is built by <strong style={{ color: "#94a3b8" }}>AN Group</strong>.
-                </p>
-                <div style={{ display: "flex", gap: 16, justifyContent: "center", fontSize: 12 }}>
-                    <Link href="/terms" style={{ color: "#64748b", textDecoration: "none" }}>
-                        Terms
-                    </Link>
-                    <Link href="/privacy" style={{ color: "#64748b", textDecoration: "none" }}>
-                        Privacy
-                    </Link>
-                    <a href="mailto:hello@angroups.dev" style={{ color: "#64748b", textDecoration: "none" }}>
-                        Contact
-                    </a>
-                </div>
-            </footer>
-        </div>
+        </>
     );
 }

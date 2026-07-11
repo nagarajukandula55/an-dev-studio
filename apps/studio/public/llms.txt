@@ -1,0 +1,30 @@
+# AN Dev Studio
+
+> A local-first AI app builder by AN Group. Six AI agents plan, scaffold, implement, review, fix, and deploy
+> real software projects from a one-line prompt. Every file write and shell command is gated behind human
+> approval before it ever touches disk or executes. Runs on the user's own machine; code never has to leave
+> it when using the local ANu (Ollama) provider.
+
+## Facts
+
+- Product: AN Dev Studio, made by AN Group.
+- Category: local-first AI app builder / AI software engineering platform.
+- Pricing: Free ($0/mo, 3 projects, local ANu provider only, 2-iteration verify loop) and Pro ($19/mo,
+  unlimited projects, full AI provider fallback chain, 5-iteration verify-and-fix loop with auto-approve).
+- Licensing: one-time Lemon Squeezy hosted checkout issues a license key; no in-app card handling, no hosted
+  user accounts.
+- Architecture: six agents (Planner, Scaffolder, Implementer, Reviewer, Fixer, Deployer) share one project
+  manifest. Every proposed file write/shell command sits in an approval queue until a human approves it.
+  Approved shell commands run in a Docker sandbox scoped to the project folder.
+- Supported platforms: Web, Windows (via Tauri), Android (needs Android SDK), iOS/macOS (source only, building
+  requires Xcode on a Mac).
+- Privacy: local ANu provider keeps everything offline; cloud providers (Groq, Cerebras, Mistral, Cloudflare,
+  OpenRouter, Gemini, HuggingFace) are opt-in per the user's own provider choice.
+
+## Pages
+
+- [Pricing](/pricing): plans, pricing, and the privacy pitch.
+- [Features](/features): the six-agent pipeline and how the build-verify-fix loop works.
+- [FAQ](/faq): frequently asked questions with direct answers.
+- [Terms](/terms): terms of service.
+- [Privacy](/privacy): privacy policy.

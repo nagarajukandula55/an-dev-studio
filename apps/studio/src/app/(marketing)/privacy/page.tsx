@@ -7,9 +7,15 @@
 // apps/studio/src/agents/README.md for what's actually implemented.
 // ============================================================================
 
+export const metadata = {
+    title: "Privacy Policy",
+    description: "How AN Dev Studio handles your code, prompts, and data — local-first by design.",
+    alternates: { canonical: "/privacy" },
+};
+
 export default function PrivacyPage() {
     return (
-        <div style={{ maxWidth: 720, margin: "0 auto", padding: "64px 24px", color: "#e2e8f0", background: "#0b0f19", minHeight: "100vh" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto", padding: "64px 24px" }}>
             <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>Privacy Policy</h1>
             <p style={{ color: "#f59e0b", fontSize: 13, marginBottom: 32 }}>
                 ⚠️ Placeholder — this page has not been reviewed by a lawyer. Replace before real launch. See{" "}
