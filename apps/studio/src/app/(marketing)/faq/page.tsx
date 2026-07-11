@@ -35,7 +35,7 @@ const FAQS = [
     },
     {
         q: "How much does AN Dev Studio cost?",
-        a: "Free: 3 projects, the local ANu provider only, a 2-iteration verify-and-fix loop, community support. Pro: $19/month for unlimited projects, the full AI provider fallback chain, a 5-iteration verify-and-fix loop with auto-approve, and priority support.",
+        a: "Free: 3 projects, the local ANu provider only, a 2-iteration verify-and-fix loop, community support. Pro: $19/month (₹999/month in India) for unlimited projects, the full AI provider fallback chain, a 5-iteration verify-and-fix loop with auto-approve, and priority support.",
     },
     {
         q: "How does licensing/billing work?",

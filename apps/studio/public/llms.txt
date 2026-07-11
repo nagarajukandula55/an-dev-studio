@@ -9,8 +9,9 @@
 
 - Product: AN Dev Studio, made by AN Group.
 - Category: local-first AI app builder / AI software engineering platform.
-- Pricing: Free ($0/mo, 3 projects, local ANu provider only, 2-iteration verify loop) and Pro ($19/mo,
-  unlimited projects, full AI provider fallback chain, 5-iteration verify-and-fix loop with auto-approve).
+- Pricing: Free ($0/mo, 3 projects, local ANu provider only, 2-iteration verify loop) and Pro ($19/mo globally,
+  ₹999/mo in India, unlimited projects, full AI provider fallback chain, 5-iteration verify-and-fix loop with
+  auto-approve).
 - Licensing: one-time Lemon Squeezy hosted checkout issues a license key; no in-app card handling, no hosted
   user accounts.
 - Architecture: six agents (Planner, Scaffolder, Implementer, Reviewer, Fixer, Deployer) share one project

@@ -2514,7 +2514,7 @@ function PlanTab({ addToast }: { addToast: (msg: string, type: Toast["type"]) =>
 
       <SectionCard title="Upgrade to Pro" description="Unlimited projects, the full AI provider fallback chain, and the full verify-and-fix loop with auto-approve.">
         <a
-          href="https://an-dev-studio.lemonsqueezy.com/checkout"
+          href="https://andevstudio.lemonsqueezy.com/checkout/buy/1b82baf9-6d26-4e05-9f9f-23258d7c597e"
           target="_blank"
           rel="noopener noreferrer"
           style={{

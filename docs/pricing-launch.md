@@ -13,6 +13,12 @@ Defined in one place — `apps/studio/src/lib/licensing/plans.ts` — enforced s
 | Verify-and-fix loop | 2 iterations, no auto-approve | 5 iterations, auto-approve allowed | 5 iterations, auto-approve allowed |
 | Support | Community | Priority | Priority + shared seats |
 
+Pro pricing: **$19/mo globally**, **₹999/mo in India** (PPP-adjusted, not a straight conversion — see
+`docs/business-plan.md` §3). The `/pricing` page shows a currency toggle (`PlansSection.tsx`) so visitors pick
+which price applies to them; both currently point at the same Lemon Squeezy checkout link until a separate
+INR price/variant is set up in the dashboard (needed for the displayed India price to actually charge in INR
+rather than just being informational).
+
 ## Checkout flow
 
 1. **User clicks "Upgrade to Pro"** (Settings → Plan & License, or the marketing/pricing page in Phase 6) → opens the Lemon Squeezy hosted checkout for the Pro product (`LEMONSQUEEZY_STORE_ID` / `LEMONSQUEEZY_PRODUCT_ID` in the app's config identify which product that is — see `apps/studio/src/lib/licensing/LicenseManager.ts`).
