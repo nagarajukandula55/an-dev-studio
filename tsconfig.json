@@ -6,15 +6,14 @@
         "noUnusedLocals": false,
         "noUnusedParameters": false
     },
-    "include": ["src/**/*.ts"],
+    "include": ["packages/**/*.ts"],
     "exclude": [
         "node_modules",
         "dist",
         "build",
         ".next",
         "**/__tests__/**",
-        "src/tests/**",
         "apps",
-        "packages"
+        "legacy"
     ]
 }

@@ -13,12 +13,11 @@
     "build":      "npm run build --workspace=@an-groups/studio",
     "lint":       "npm run lint --workspace=@an-groups/studio",
     "type-check": "tsc --noEmit --project tsconfig.json && npm run type-check --workspaces --if-present",
-    "test":       "vitest run --config vitest.config.mjs",
+    "test":       "vitest run --config vitest.config.mjs && npm run test --workspace=@an-groups/studio",
     "test:watch": "vitest --config vitest.config.mjs",
     "test:ui":    "vitest --ui --config vitest.config.mjs",
     "coverage":   "vitest run --coverage --config vitest.config.mjs",
-    "clean":      "npm run clean --workspace=@an-groups/studio",
-    "studio":     "tsx src/studio.ts"
+    "clean":      "npm run clean --workspace=@an-groups/studio"
   },
   "engines": {
     "node": ">=22.0.0",

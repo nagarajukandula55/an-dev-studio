@@ -8,6 +8,7 @@
 
 import type { ChatMessage, ChatStreamCallback, IProvider, ProviderStatus, StreamChunk } from "./types";
 import { getAgentPrompt } from "./agentPrompts";
+import { licenseManager } from "@/lib/licensing/LicenseManager";
 import {
     AnuProvider,
     CerebrasProvider,
@@ -85,14 +86,25 @@ export class ProviderManager {
             ...messages,
         ];
 
+        // Free plan: local ANu (Ollama) provider only — the paid cloud fallback
+        // chain (Groq/Cerebras/Mistral/Cloudflare/OpenRouter/Gemini/HuggingFace)
+        // is a Pro feature. Enforced here, not just in the UI, since every
+        // agent LLM call (chat and the core-team agents alike) goes through
+        // this one method.
+        const restrictToAnu = licenseManager.getStatus().plan === "free";
+
         const ordered   = this.getOrderedChain(preferredProvider);
-        const available = ordered.filter(p => p.isAvailable() && !this.isCircuitOpen(p.name));
+        const available = ordered.filter(p => p.isAvailable() && !this.isCircuitOpen(p.name) && (!restrictToAnu || p.name === "anu"));
 
         if (available.length === 0) {
             throw new Error(
-                "No AI providers are configured.\n\n" +
-                "Quick start: Add GROQ_API_KEY to .env.local (free at console.groq.com) " +
-                "or enable ANu by adding OLLAMA_ENABLED=true and running anu/setup.ps1.",
+                restrictToAnu
+                    ? "No AI providers are configured.\n\n" +
+                      "The Free plan only uses the local ANu provider — enable it by adding OLLAMA_ENABLED=true " +
+                      "and running anu/setup.ps1, or upgrade to Pro to unlock the full cloud fallback chain."
+                    : "No AI providers are configured.\n\n" +
+                      "Quick start: Add GROQ_API_KEY to .env.local (free at console.groq.com) " +
+                      "or enable ANu by adding OLLAMA_ENABLED=true and running anu/setup.ps1.",
             );
         }
 

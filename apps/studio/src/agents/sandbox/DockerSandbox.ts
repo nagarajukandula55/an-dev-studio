@@ -37,13 +37,22 @@ export async function isDockerAvailable(): Promise<boolean> {
     return available;
 }
 
+export interface SandboxResult {
+    code: number | null;
+    stdout: string;
+    stderr: string;
+}
+
 /**
  * Runs `command` inside a fresh container with `hostCwd` bind-mounted at
  * /workspace (and used as the container's working directory). The container
- * is removed after the command finishes (--rm).
+ * is removed after the command finishes (--rm). Always resolves with the
+ * captured output and exit code — callers (ApprovalQueue, BuildVerifier)
+ * decide what a non-zero exit means, rather than this function throwing and
+ * discarding stdout in the process.
  */
-export async function runInSandbox(command: string, hostCwd: string): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
+export async function runInSandbox(command: string, hostCwd: string): Promise<SandboxResult> {
+    return new Promise<SandboxResult>((resolve, reject) => {
         const dockerArgs = [
             "run",
             "--rm",
@@ -55,12 +64,11 @@ export async function runInSandbox(command: string, hostCwd: string): Promise<vo
         ];
 
         const child = spawn("docker", dockerArgs, { windowsHide: true });
+        let stdout = "";
         let stderr = "";
+        child.stdout?.on("data", (d) => { stdout += d.toString(); });
         child.stderr?.on("data", (d) => { stderr += d.toString(); });
         child.on("error", reject);
-        child.on("exit", (code) => {
-            if (code === 0) resolve();
-            else reject(new Error(`Sandboxed command exited with code ${code}: ${stderr.slice(0, 2000)}`));
-        });
+        child.on("exit", (code) => resolve({ code, stdout, stderr }));
     });
 }
