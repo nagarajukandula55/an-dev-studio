@@ -2,7 +2,7 @@
     "framework": "nextjs",
     "buildCommand": "npm run build",
     "outputDirectory": ".next",
-    "installCommand": "npm install && npm install --no-save lightningcss-linux-x64-gnu lightningcss-linux-arm64-gnu",
+    "installCommand": "npm install && npm install --no-save lightningcss-linux-x64-gnu @tailwindcss/oxide-linux-x64-gnu",
     "devCommand": "npm run dev",
     "env": {
         "DEFAULT_PROVIDER": "groq"
