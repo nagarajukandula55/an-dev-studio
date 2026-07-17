@@ -9,6 +9,7 @@
 import type { ChatMessage, ChatStreamCallback, IProvider, ProviderStatus, StreamChunk } from "./types";
 import { getAgentPrompt } from "./agentPrompts";
 import { licenseManager } from "@/lib/licensing/LicenseManager";
+import { ANU_ENABLED } from "@/lib/config/buildVariant";
 import {
     AnuProvider,
     CerebrasProvider,
@@ -32,10 +33,12 @@ interface ProviderHealth {
 export class ProviderManager {
     private static instance: ProviderManager;
 
-    // ANu first — in-house, private, zero cost
-    // Then external cloud providers as fallback
+    // ANu first — in-house, private, zero cost — then external cloud
+    // providers as fallback. Excluded entirely on the sellable build
+    // (ANU_ENABLED=false — see lib/config/buildVariant.ts): buyers never
+    // get the personal fine-tuned model, only the bring-your-own-key chain.
     private readonly chain: IProvider[] = [
-        new AnuProvider(),
+        ...(ANU_ENABLED ? [new AnuProvider()] : []),
         new GroqProvider(),
         new CerebrasProvider(),
         new MistralProvider(),
@@ -86,15 +89,20 @@ export class ProviderManager {
             ...messages,
         ];
 
-        // Free plan: local ANu (Ollama) provider only — the paid cloud fallback
-        // chain (Groq/Cerebras/Mistral/Cloudflare/OpenRouter/Gemini/HuggingFace)
-        // is a Pro feature. Enforced here, not just in the UI, since every
-        // agent LLM call (chat and the core-team agents alike) goes through
-        // this one method.
-        const restrictToAnu = licenseManager.getStatus().plan === "free";
+        // Free plan: on the personal build (ANu shipped), local ANu only — the
+        // paid cloud fallback chain is a Pro feature. On the sellable build
+        // (ANU_ENABLED=false, no ANu to fall back to), Free instead allows
+        // exactly one bring-your-own provider rather than the full
+        // multi-provider fallback chain, which stays a Pro perk either way.
+        // Enforced here, not just in the UI, since every agent LLM call
+        // (chat and the core-team agents alike) goes through this one method.
+        const isFreePlan = licenseManager.getStatus().plan === "free";
+        const restrictToAnu = isFreePlan && ANU_ENABLED;
+        const restrictToSingleProvider = isFreePlan && !ANU_ENABLED;
 
-        const ordered   = this.getOrderedChain(preferredProvider);
-        const available = ordered.filter(p => p.isAvailable() && !this.isCircuitOpen(p.name) && (!restrictToAnu || p.name === "anu"));
+        const ordered = this.getOrderedChain(preferredProvider);
+        const usable = ordered.filter(p => p.isAvailable() && !this.isCircuitOpen(p.name) && (!restrictToAnu || p.name === "anu"));
+        const available = restrictToSingleProvider ? usable.slice(0, 1) : usable;
 
         if (available.length === 0) {
             throw new Error(
@@ -103,8 +111,8 @@ export class ProviderManager {
                       "The Free plan only uses the local ANu provider — enable it by adding OLLAMA_ENABLED=true " +
                       "and running anu/setup.ps1, or upgrade to Pro to unlock the full cloud fallback chain."
                     : "No AI providers are configured.\n\n" +
-                      "Quick start: Add GROQ_API_KEY to .env.local (free at console.groq.com) " +
-                      "or enable ANu by adding OLLAMA_ENABLED=true and running anu/setup.ps1.",
+                      "Quick start: Add GROQ_API_KEY to .env.local (free at console.groq.com)" +
+                      (ANU_ENABLED ? " or enable ANu by adding OLLAMA_ENABLED=true and running anu/setup.ps1." : "."),
             );
         }
 

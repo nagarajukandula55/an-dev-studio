@@ -12,6 +12,25 @@ A **desktop-first, local-first AI app builder**. The product itself (`apps/studi
 approval-gated execution, a verify-and-fix loop, SQLite persistence, Free/Pro/Team plan gating. What's left is
 business infrastructure, not code.
 
+## 1.5. Two build variants, one codebase
+
+Controlled by `ANU_ENABLED` (env var, see `apps/studio/src/lib/config/buildVariant.ts`) — no code fork, no
+separate repo:
+
+- **Personal build** (default, `ANU_ENABLED` unset/true): includes the ANu provider in `ProviderManager`'s
+  chain and the ANu Guide floating widget. Kept for your own use — **never distributed to customers**, since it
+  bundles your personal fine-tuned model.
+- **Sellable build** (`ANU_ENABLED=false`): ANu is excluded entirely from the provider chain (buyers bring
+  their own cloud provider key, e.g. a free Groq key, or their own local Ollama instance). The ANu Guide widget
+  is hidden. The assistant's display name is configurable per install (Settings → AI & Agents → Agent Identity,
+  backed by `AGENT_DISPLAY_NAME` in the runtime config store) — buyers can name their own assistant instead of
+  it being hardcoded "ANu".
+- On the sellable build, the **Free plan's provider restriction changes meaning**: since there's no ANu to
+  restrict to, Free instead allows exactly one bring-your-own provider (no automatic multi-provider fallback —
+  that stays a Pro perk). See the `providerAccess` doc comment in `lib/licensing/plans.ts`.
+
+Set `ANU_ENABLED=false` in whatever `.env`/hosting env config builds the version you intend to sell.
+
 ## 2. Cost structure
 
 This is unusually cheap to run because there's no hosted backend serving other people's AI calls — users bring

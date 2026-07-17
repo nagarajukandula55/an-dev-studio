@@ -46,6 +46,12 @@ function openDatabase(): Database.Database {
     fs.mkdirSync(dataDir, { recursive: true });
 
     const db = new Database(path.join(dataDir, "studio.db"));
+    // Wait for a busy lock instead of throwing SQLITE_BUSY immediately —
+    // without this, concurrent first-time opens of the same file (e.g.
+    // Next.js's build running multiple parallel workers that each import
+    // an API route touching this module) race on WAL-mode initialization
+    // and fail intermittently.
+    db.pragma("busy_timeout = 5000");
     db.pragma("journal_mode = WAL");
     db.pragma("foreign_keys = ON");
     db.exec(SCHEMA_SQL);

@@ -14,8 +14,10 @@ import {
     readRuntimeStore as readStore,
     writeRuntimeStore as writeStore,
     isRuntimeConfigPersistent,
+    getAgentDisplayName,
     PROVIDER_ENV_VAR,
 } from "@/lib/configStore";
+import { ANU_ENABLED } from "@/lib/config/buildVariant";
 
 type ProviderSource = "env" | "config" | "none";
 
@@ -41,6 +43,9 @@ interface ConfigResponse {
     // the Settings UI surfaces this so users know to also set real
     // environment variables for anything they want to keep long-term.
     persistent: boolean;
+    // Build-variant fields — see lib/config/buildVariant.ts.
+    anuEnabled: boolean;
+    agentDisplayName: string;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -89,6 +94,8 @@ export async function GET(): Promise<Response> {
             },
         },
         persistent: isRuntimeConfigPersistent(),
+        anuEnabled: ANU_ENABLED,
+        agentDisplayName: getAgentDisplayName(),
     };
 
     return Response.json(resp);

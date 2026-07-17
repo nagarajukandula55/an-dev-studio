@@ -95,7 +95,16 @@ export const ALLOWED_RUNTIME_KEYS = new Set([
   "VERCEL_TOKEN",
   "VERCEL_ORG_ID",
   "VERCEL_PROJECT_ID",
+  "AGENT_DISPLAY_NAME",
 ]);
+
+// Lets each install rename the assistant away from "ANu" — required on the
+// sellable build (see lib/config/buildVariant.ts), since buyers don't get
+// the personal ANu model/branding and should be able to name their own.
+// Defaults to "ANu" so the personal build's behavior is unchanged.
+export function getAgentDisplayName(): string {
+  return getRuntimeConfig()["AGENT_DISPLAY_NAME"]?.trim() || "ANu";
+}
 
 // Cloudflare Workers AI needs both a token AND an account id to form its base
 // URL — read separately from getProviderKey() since that helper assumes a

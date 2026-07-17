@@ -13,7 +13,14 @@ export interface PlanLimits {
     label: string;
     /** null = unlimited */
     maxProjects: number | null;
-    /** "anu-only" restricts the provider fallback chain to the local ANu (Ollama) provider. */
+    /**
+     * "anu-only" restricts the provider chain to a single provider on Free:
+     * on the personal build (ANu shipped) that's specifically the local ANu
+     * (Ollama) provider; on the sellable build (ANU_ENABLED=false — see
+     * lib/config/buildVariant.ts), ANu doesn't exist, so this instead means
+     * "exactly one bring-your-own cloud provider, no automatic fallback
+     * chain" — see ProviderManager.streamChat().
+     */
     providerAccess: "anu-only" | "full-chain";
     verifyLoopMaxIterations: number;
     autoApproveAllowed: boolean;

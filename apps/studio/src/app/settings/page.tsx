@@ -491,9 +491,93 @@ function AIAgentsTab({ addToast }: { addToast: (msg: string, type: Toast["type"]
   const [timeout, setTimeout] = useState(30);
   const [contextMemory, setContextMemory] = useState(true);
   const [temperature, setTemperature] = useState(0.7);
+  const [agentName, setAgentName] = useState("");
+  const [anuEnabled, setAnuEnabled] = useState(true);
+  const [savingName, setSavingName] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/config")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { anuEnabled?: boolean; agentDisplayName?: string } | null) => {
+        if (!data) return;
+        setAnuEnabled(data.anuEnabled ?? true);
+        setAgentName(data.agentDisplayName ?? "ANu");
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveAgentName = async () => {
+    if (!agentName.trim()) {
+      addToast("Enter a name first", "error");
+      return;
+    }
+    setSavingName(true);
+    try {
+      const res = await fetch("/api/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: "AGENT_DISPLAY_NAME", value: agentName.trim() }),
+      });
+      addToast(res.ok ? "Agent name saved" : "Failed to save", res.ok ? "success" : "error");
+    } catch {
+      addToast("Network error", "error");
+    } finally {
+      setSavingName(false);
+    }
+  };
 
   return (
     <>
+      <SectionCard
+        title="Agent Identity"
+        description={
+          anuEnabled
+            ? "This install includes the personal ANu model — the guide widget is branded ANu."
+            : "Name your assistant — used in the guide widget and chat instead of a fixed brand name."
+        }
+      >
+        <SettingRow label="Assistant name" description="What the floating guide widget and chat call themselves">
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="text"
+              value={agentName}
+              onChange={(e) => setAgentName(e.target.value)}
+              placeholder="ANu"
+              style={{
+                width: 180,
+                height: 36,
+                padding: "0 12px",
+                borderRadius: 8,
+                border: "1.5px solid var(--border, #e2e8f0)",
+                background: "var(--background, #f8fafc)",
+                color: "var(--foreground, #0f172a)",
+                fontSize: 13,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+            />
+            <button
+              onClick={() => void handleSaveAgentName()}
+              disabled={savingName}
+              style={{
+                padding: "0 14px",
+                height: 36,
+                borderRadius: 8,
+                border: "none",
+                background: savingName ? "#e2e8f0" : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                color: savingName ? "#94a3b8" : "#ffffff",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: savingName ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {savingName ? "Saving..." : "Save"}
+            </button>
+          </div>
+        </SettingRow>
+      </SectionCard>
+
       <SectionCard title="Agent Behavior" description="Configure how AI agents operate in your workspace">
         <SettingRow label="Multi-agent Mode" description="Enable coordination between multiple AI agents on complex tasks">
           <Toggle checked={multiAgent} onChange={setMultiAgent} label="Toggle multi-agent mode" />

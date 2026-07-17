@@ -140,6 +140,8 @@ export function AnuGuide() {
     const [streaming, setStreaming]  = useState(false);
     const [mounted, setMounted]      = useState(false);
     const [pulse, setPulse]          = useState(true);
+    const [anuEnabled, setAnuEnabled] = useState(true); // optimistic default — avoids a flash on the personal build
+    const [agentName, setAgentName]  = useState("ANu");
     const bottomRef                  = useRef<HTMLDivElement>(null);
     const inputRef                   = useRef<HTMLInputElement>(null);
     const abortRef                   = useRef<AbortController | null>(null);
@@ -149,6 +151,19 @@ export function AnuGuide() {
         setMounted(true);
         // Stop pulsing after 8 seconds
         const t = setTimeout(() => setPulse(false), 8000);
+
+        // Build-variant check: hidden entirely on the sellable build (see
+        // lib/config/buildVariant.ts) — buyers get their own nameable
+        // assistant elsewhere, not this ANu-specific guide.
+        fetch("/api/config")
+            .then((r) => (r.ok ? r.json() : null))
+            .then((data: { anuEnabled?: boolean; agentDisplayName?: string } | null) => {
+                if (!data) return;
+                setAnuEnabled(data.anuEnabled ?? true);
+                setAgentName(data.agentDisplayName || "ANu");
+            })
+            .catch(() => {});
+
         return () => clearTimeout(t);
     }, []);
 
@@ -159,7 +174,7 @@ export function AnuGuide() {
                 setMessages([{
                     id:      "welcome",
                     role:    "anu",
-                    content: `👋 Hi Nagaraj! I'm ANu, your platform guide.\n\nYou're in **${ctx.title}**. ${ctx.description}\n\nHow can I help you right now?`,
+                    content: `👋 Hi! I'm ${agentName}, your platform guide.\n\nYou're in **${ctx.title}**. ${ctx.description}\n\nHow can I help you right now?`,
                 }]);
             }
             setTimeout(() => inputRef.current?.focus(), 100);
@@ -189,12 +204,12 @@ export function AnuGuide() {
         const ctrl = new AbortController();
         abortRef.current = ctrl;
 
-        const systemContext = `You are ANu, the AI guide for AN Dev Studio — an AI-powered Software Engineering Platform by AN GROUP.
+        const systemContext = `You are ${agentName}, the AI guide for AN Dev Studio — an AI-powered Software Engineering Platform by AN GROUP.
 
 Current page: ${ctx.title}
 Page description: ${ctx.description}
 
-Your role is to guide Nagaraj through any process on this platform. Be warm, direct, and practical.
+Your role is to guide the user through any process on this platform. Be warm, direct, and practical.
 Format responses with clear steps when walking through a process.
 Use markdown: **bold** for key terms, numbered lists for steps, backticks for code/commands.
 Keep responses focused and actionable. Max 300 words unless the user asks for more detail.`;
@@ -252,16 +267,16 @@ Keep responses focused and actionable. Max 300 words unless the user asks for mo
             setStreaming(false);
             abortRef.current = null;
         }
-    }, [streaming, messages, ctx]);
+    }, [streaming, messages, ctx, agentName]);
 
-    if (!mounted) return null;
+    if (!mounted || !anuEnabled) return null;
 
     return (
         <>
             {/* ── Floating button ─────────────────────────────────────────── */}
             <button
                 onClick={() => setOpen(v => !v)}
-                title="Ask ANu"
+                title={`Ask ${agentName}`}
                 data-anu-trigger
                 style={{
                     position:     "fixed",
@@ -337,7 +352,7 @@ Keep responses focused and actionable. Max 300 words unless the user asks for mo
                         fontSize: "16px", flexShrink: 0,
                     }}>🧠</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff" }}>ANu Guide</div>
+                        <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff" }}>{agentName} Guide</div>
                         <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.8)" }}>
                             {ctx.title} · {streaming ? "Thinking…" : "Ready to help"}
                         </div>
@@ -416,7 +431,7 @@ Keep responses focused and actionable. Max 300 words unless the user asks for mo
                         value={input}
                         onChange={e => setInput(e.target.value)}
                         onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
-                        placeholder="Ask ANu anything…"
+                        placeholder={`Ask ${agentName} anything…`}
                         disabled={streaming}
                         style={{
                             flex:         1,
